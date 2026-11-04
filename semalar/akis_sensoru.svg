@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" font-family="DejaVu Sans, sans-serif">
+<rect width="1600" height="1000" fill="#fff"/>
+<text x="800" y="60" font-size="46" font-weight="bold" text-anchor="middle">Su akış sensörü (YF-S201) bağlantısı</text>
+<rect x="60" y="180" width="300" height="400" rx="24" fill="#eee" stroke="#000" stroke-width="5"/>
+<text x="210" y="250" font-size="40" font-weight="bold" text-anchor="middle">AKIŞ</text>
+<text x="210" y="295" font-size="28" text-anchor="middle">YF-S201</text>
+<g font-size="32" font-weight="bold">
+<text x="80" y="375">Kırmızı</text>
+<text x="80" y="455">Siyah</text>
+<text x="80" y="535">Sarı</text>
+</g>
+<rect x="1240" y="180" width="300" height="560" rx="24" fill="#dde8ff" stroke="#000" stroke-width="5"/>
+<text x="1390" y="250" font-size="44" font-weight="bold" text-anchor="middle">ESP32</text>
+<g font-size="40" font-weight="bold">
+<text x="1270" y="375">VIN</text>
+<text x="1270" y="455">GND</text>
+<text x="1270" y="700">33</text>
+</g>
+<line x1="300" y1="365" x2="1260" y2="365" stroke="#e00000" stroke-width="14"/>
+<line x1="300" y1="445" x2="1260" y2="445" stroke="#000" stroke-width="14"/>
+<line x1="300" y1="525" x2="940" y2="525" stroke="#e6b800" stroke-width="14"/>
+<circle cx="940" cy="525" r="22" fill="#000"/>
+<text x="925" y="495" font-size="44" font-weight="bold">B</text>
+<polyline points="940,525 1100,525 1100,690 1260,690" fill="none" stroke="#00a040" stroke-width="14"/>
+<text x="1110" y="650" font-size="28" fill="#00a040" font-weight="bold">EN SON</text>
+<line x1="940" y1="525" x2="940" y2="600" stroke="#000" stroke-width="8"/>
+<rect x="910" y="600" width="60" height="180" rx="14" fill="#f3d9a4" stroke="#000" stroke-width="5"/>
+<rect x="910" y="630" width="60" height="22" fill="#e00000"/>
+<rect x="910" y="672" width="60" height="22" fill="#000"/>
+<rect x="910" y="714" width="60" height="22" fill="#ff8000"/>
+<text x="990" y="705" font-size="40" font-weight="bold">20k</text>
+<line x1="940" y1="780" x2="940" y2="860" stroke="#000" stroke-width="12"/>
+<line x1="890" y1="860" x2="990" y2="860" stroke="#000" stroke-width="10"/>
+<line x1="908" y1="880" x2="972" y2="880" stroke="#000" stroke-width="10"/>
+<line x1="926" y1="900" x2="954" y2="900" stroke="#000" stroke-width="10"/>
+<text x="1010" y="885" font-size="40" font-weight="bold">GND</text>
+<text x="620" y="490" font-size="30" font-weight="bold" text-anchor="middle" fill="#c00">üstte direnç YOK</text>
+<rect x="60" y="660" width="760" height="290" rx="20" fill="#fff6cc" stroke="#c90" stroke-width="4"/>
+<text x="90" y="715" font-size="34" font-weight="bold">Multimetre: B ile GND arası</text>
+<text x="90" y="770" font-size="32">Üflerken (ortalama): ~1,5 V</text>
+<text x="90" y="820" font-size="32">Pervane durunca: 0 V veya ~3 V</text>
+<text x="90" y="875" font-size="30">Sensörün içinde ~10k direnç var,</text>
+<text x="90" y="915" font-size="30">o yüzden tek 20k yeterli.</text>
+</svg>

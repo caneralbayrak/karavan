@@ -1,0 +1,587 @@
+substitutions:
+  ntfy_konu: !secret ntfy_konu
+  kayma_esigi: "0.7"   # derece; konaklamada bu kadar değişirse uyarı
+  su_kal_sayi: "8"     # su kalibrasyonunda ortalaması alınan son ölçüm sayısı
+
+esphome:
+  name: sensor-dugumu
+  includes:
+    - karavan.h
+  on_boot:
+    # OTA sırasında kapatılan akü bağlantısını açılışta geri aç
+    - priority: -100
+      then:
+        - switch.turn_on: bms_baglanti
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+external_components:
+  # Daly BMS (akü) Bluetooth bileşeni, test edilen sürüme sabitlendi
+  - source: github://syssi/esphome-daly-bms@b0e79de238c756bce67f8415c82febc6d79cb67c
+    refresh: never
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret api_anahtari
+
+ota:
+  - platform: esphome
+    encryption:
+    on_begin:
+      - switch.turn_off: bms_baglanti
+
+wifi:
+  networks:
+    - ssid: !secret wifi1_ad
+      password: !secret wifi1_sifre
+    - ssid: !secret wifi2_ad
+      password: !secret wifi2_sifre
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Sensor-Dugumu Fallback Hotspot"
+    password: !secret yedek_ag_sifre
+
+captive_portal:
+
+mqtt:
+  broker: 192.168.1.117
+
+http_request:
+  verify_ssl: true
+  timeout: 10s
+  watchdog_timeout: 15s
+
+i2c:
+  sda: GPIO21
+  scl: GPIO22
+  scan: true
+
+# GPS (NEO-M8N): modülün TX ucu → GPIO16, RX ucu → GPIO17, VCC 5V, GND
+uart:
+  - id: gps_uart
+    rx_pin: GPIO16
+    tx_pin: GPIO17
+    baud_rate: 9600
+
+gps:
+  uart_id: gps_uart
+  update_interval: 10s
+  latitude:
+    name: "GPS Enlem"
+    id: gps_enlem
+    accuracy_decimals: 6
+  longitude:
+    name: "GPS Boylam"
+    id: gps_boylam
+    accuracy_decimals: 6
+  altitude:
+    name: "GPS Rakim"
+    accuracy_decimals: 0
+  speed:
+    name: "GPS Hiz"
+    accuracy_decimals: 0
+  satellites:
+    name: "GPS Uydu"
+    id: gps_uydu
+  hdop:
+    name: "GPS HDOP"
+    id: gps_hdop
+
+# Akü BMS (Daly uyumlu, Bluetooth adı JHB-501905011293)
+esp32_ble_tracker:
+  scan_parameters:
+    active: false
+
+ble_client:
+  - mac_address: "50:19:05:01:12:93"
+    id: bms_ble
+
+daly_bms_ble:
+  - ble_client_id: bms_ble
+    id: bms
+    password: 12345678
+    status_registers: 62
+    update_interval: 10s
+    response_timeout: 3s
+
+globals:
+  # "Düz kabul et" ile kaydedilen sensör sıfır noktası
+  - id: ofs_x
+    type: float
+    restore_value: true
+    initial_value: '0'
+  - id: ofs_y
+    type: float
+    restore_value: true
+    initial_value: '0'
+  # Konaklama başlarken kaydedilen konum
+  - id: ref_on
+    type: float
+    restore_value: true
+    initial_value: '0'
+  - id: ref_yan
+    type: float
+    restore_value: true
+    initial_value: '0'
+  # Alarm kurulduğu andaki konum (NAN = henüz alınmadı)
+  - id: gps_ref_enlem
+    type: float
+    restore_value: true
+    initial_value: 'NAN'
+  - id: gps_ref_boylam
+    type: float
+    restore_value: true
+    initial_value: 'NAN'
+  # Eşiği art arda kaç ölçümde aştı (tek bir GPS sıçraması bildirim göndermesin)
+  - id: gps_asim
+    type: int
+    initial_value: '0'
+  # --- Temiz su ---
+  # Depo dolu tuşundan beri akış sensörünün saydığı sinyal
+  - id: su_sinyal
+    type: float
+    restore_value: true
+    initial_value: '0'
+  # Litre başına sinyal (YF-S201 kataloğu ~450); kalibrasyon kaydının ortalaması
+  - id: su_k
+    type: float
+    restore_value: true
+    initial_value: '450'
+  # Kalibrasyon kaydı: son ölçümler (halka dizi)
+  - id: su_kayit
+    type: std::array<float, ${su_kal_sayi}>
+    restore_value: true
+  - id: su_kayit_n
+    type: int
+    restore_value: true
+    initial_value: '0'
+  # Bu doldurmada kalibrasyon ölçümü yapıldı mı (her doldurmada bir kez)
+  - id: su_olculdu
+    type: bool
+    restore_value: true
+    initial_value: 'false'
+  # Son ölçüm reddedildiyse değeri (0 = yok)
+  - id: su_red
+    type: float
+    restore_value: true
+    initial_value: '0'
+
+number:
+  # Alarm kuruluyken karavan bu kadar metre yer değiştirirse bildirim (test için düşürülebilir)
+  - platform: template
+    name: "GPS Alarm Esik"
+    id: gps_esik
+    unit_of_measurement: "m"
+    min_value: 1
+    max_value: 1000
+    step: 1
+    initial_value: 50
+    optimistic: true
+    restore_value: true
+  - platform: template
+    name: "Su Depo Litre"
+    id: su_depo
+    min_value: 10
+    max_value: 500
+    step: 1
+    initial_value: 100
+    optimistic: true
+    restore_value: true
+  # Alttaki seviye sensörünün altında kalan su (30 cm depoda 7 cm ≈ 25 L)
+  - platform: template
+    name: "Su Sensor Alti Litre"
+    id: su_alt_litre
+    min_value: 0
+    max_value: 200
+    step: 1
+    initial_value: 25
+    optimistic: true
+    restore_value: true
+
+select:
+  - platform: template
+    name: "Sensor Yonu"
+    id: sensor_yonu
+    options: ["X one", "X arkaya", "X sola", "X saga"]
+    initial_option: "X one"
+    optimistic: true
+    restore_value: true
+
+button:
+  - platform: template
+    name: "Duz Kabul Et"
+    on_press:
+      - lambda: |-
+          float ax = id(ivme_x).state, ay = id(ivme_y).state, az = id(ivme_z).state;
+          if (isnan(ax) || isnan(ay) || isnan(az)) return;
+          id(ofs_x) = ham_egim(ax, ay, az);
+          id(ofs_y) = ham_egim(ay, ax, az);
+          id(ref_on) = 0;
+          id(ref_yan) = 0;
+  - platform: template
+    name: "Su Depo Dolu"
+    on_press:
+      - lambda: |-
+          id(su_sinyal) = 0;
+          id(su_olculdu) = false;
+      - component.update: su_kalan
+  - platform: template
+    name: "Su Kalibrasyon Sifirla"
+    on_press:
+      - lambda: |-
+          id(su_kayit_n) = 0;
+          id(su_red) = 0;
+          id(su_k) = 450;
+      - component.update: su_kalibrasyon
+      - component.update: su_kalan
+
+switch:
+  - platform: template
+    name: "Konaklama"
+    id: konaklama
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    turn_on_action:
+      - switch.turn_on: su_pompasi
+      # Açılışta durum geri yüklenirken kayıtlı konumu ezme
+      - lambda: |-
+          if (esphome::millis() < 15000) return;
+          if (isnan(id(egim_on).state) || isnan(id(egim_yan).state)) return;
+          id(ref_on) = id(egim_on).state;
+          id(ref_yan) = id(egim_yan).state;
+    # Konaklama bitince (yolda / park halinde) hatta basınç kalmasın
+    turn_off_action:
+      - switch.turn_off: su_pompasi
+  # Su pompası rölesi: konaklamayla birlikte açılır/kapanır, panelden elle de değişir.
+  # Pompa rölenin NO (normalde açık) ucuna bağlanır: ESP arızalanırsa pompa kapalı kalır.
+  # Röle kartı: JD-VCC köprüsünü çıkar, VCC=3.3V, JD-VCC=5V (yoksa röle tam bırakmayabilir)
+  - platform: gpio
+    pin:
+      number: GPIO25
+      inverted: true   # röle kartları LOW ile çeker
+    name: "Su Pompasi"
+    id: su_pompasi
+    icon: mdi:water-pump
+    restore_mode: RESTORE_DEFAULT_OFF
+  # Kapatılırsa telefon uygulaması aküye bağlanabilir (aynı anda tek bağlantı)
+  - platform: ble_client
+    ble_client_id: bms_ble
+    name: "BMS Baglanti"
+    id: bms_baglanti
+
+text_sensor:
+  - platform: mqtt_subscribe
+    id: alarm_durum
+    topic: karavan/alarm
+    on_value:
+      # Alarm kurulunca o anki konumu referans al, kapanınca unut
+      - lambda: |-
+          if (x == "kurulu" && isnan(id(gps_ref_enlem))) {
+            id(gps_ref_enlem) = gps_iyi(id(gps_uydu).state, id(gps_hdop).state, id(gps_enlem).state) ? id(gps_enlem).state : NAN;
+            id(gps_ref_boylam) = gps_iyi(id(gps_uydu).state, id(gps_hdop).state, id(gps_enlem).state) ? id(gps_boylam).state : NAN;
+          } else if (x == "kapali") {
+            id(gps_ref_enlem) = NAN;
+            id(gps_ref_boylam) = NAN;
+          }
+          id(gps_asim) = 0;
+  - platform: template
+    name: "Su Kalibrasyon"
+    id: su_kalibrasyon
+    update_interval: 300s
+    lambda: |-
+      int n = std::min(id(su_kayit_n), ${su_kal_sayi});
+      std::string s = n ? "" : "henüz ölçüm yok";
+      char b[48];
+      for (int i = 0; i < n; i++) {
+        snprintf(b, sizeof(b), "%s%.0f", i ? ", " : "", id(su_kayit)[i]);
+        s += b;
+      }
+      if (id(su_red) > 0) {
+        snprintf(b, sizeof(b), " | son ölçüm reddedildi: %.0f", id(su_red));
+        s += b;
+      }
+      return s;
+  - platform: daly_bms_ble
+    daly_bms_ble_id: bms
+    battery_status:
+      name: "Aku Durum"
+    errors:
+      name: "Aku Hatalar"
+
+script:
+  - id: gps_ntfy
+    mode: single
+    then:
+      - http_request.post:
+          url: https://ntfy.sh/${ntfy_konu}
+          request_headers:
+            Title: "Karavan yer degistiriyor!"
+            Priority: "urgent"
+            Tags: "rotating_light,world_map"
+          body: !lambda |-
+            char b[160];
+            snprintf(b, sizeof(b), "Alarm kuruluyken karavan %.0f m uzaklaştı.\nKonum: https://maps.google.com/?q=%.6f,%.6f",
+                     mesafe_m(id(gps_ref_enlem), id(gps_ref_boylam), id(gps_enlem).state, id(gps_boylam).state),
+                     id(gps_enlem).state, id(gps_boylam).state);
+            return std::string(b);
+      # Taşınmaya devam ederse 5 dakikada bir yeni konumu gönder
+      - delay: 5min
+
+  - id: ntfy_gonder
+    mode: single
+    then:
+      - http_request.post:
+          url: https://ntfy.sh/${ntfy_konu}
+          request_headers:
+            Title: "Karavan Alarm"
+            Priority: "urgent"
+            Tags: "rotating_light"
+          body: "Karavanda hareket algılandı!"
+      - delay: 60s
+
+sensor:
+  - platform: daly_bms_ble
+    daly_bms_ble_id: bms
+    total_voltage:
+      name: "Aku Voltaj"
+    current:
+      name: "Aku Akim"
+    power:
+      name: "Aku Guc"
+    state_of_charge:
+      name: "Aku Doluluk"
+    capacity_remaining:
+      name: "Aku Kalan"
+    charging_cycles:
+      name: "Aku Dongu"
+    min_cell_voltage:
+      name: "Aku Min Hucre"
+    max_cell_voltage:
+      name: "Aku Max Hucre"
+    delta_cell_voltage:
+      name: "Aku Hucre Farki"
+    temperature_1:
+      name: "Aku Sicaklik 1"
+    temperature_2:
+      name: "Aku Sicaklik 2"
+    cell_voltage_1:
+      name: "Aku Hucre 1"
+    cell_voltage_2:
+      name: "Aku Hucre 2"
+    cell_voltage_3:
+      name: "Aku Hucre 3"
+    cell_voltage_4:
+      name: "Aku Hucre 4"
+  # Akış sensörü (YF-S201), su pompası çıkışında. 5V beslenir; içinde ~10k pull-up var: sarı - GPIO33 -[20k]- GND (tepe ~3V)
+  - platform: pulse_counter
+    pin: GPIO33
+    name: "Su Akis"
+    unit_of_measurement: "L/dk"
+    accuracy_decimals: 1
+    update_interval: 5s
+    filters:
+      - lambda: return x / id(su_k);
+    total:
+      id: su_toplam_sinyal
+      internal: true
+      on_raw_value:
+        - lambda: |-
+            // Toplam açılıştan beri sayılan sinyal; farkı depo sayacına ekle
+            static float onceki = 0;
+            if (x > onceki) id(su_sinyal) += x - onceki;
+            onceki = x;
+  - platform: template
+    name: "Su Kalan"
+    id: su_kalan
+    unit_of_measurement: "L"
+    accuracy_decimals: 0
+    update_interval: 5s
+    lambda: |-
+      float depo = id(su_depo).state, alt = id(su_alt_litre).state;
+      float kalan = std::max(0.0f, depo - id(su_sinyal) / id(su_k));
+      // Alt sensör hesaptan daha güvenilir: suyun sensörün üstünde mi altında mı olduğunu kesin bilir
+      if (id(su_alt).state) kalan = std::max(kalan, alt + 1);
+      else kalan = std::min(kalan, alt);
+      return kalan;
+  # Son "Depo Dolu"dan beri sayılan sinyal (ölçülü kapla kalibrasyon ve arıza arama için)
+  - platform: template
+    name: "Su Sayac"
+    unit_of_measurement: "sinyal"
+    accuracy_decimals: 0
+    update_interval: 5s
+    lambda: return id(su_sinyal);
+  - platform: template
+    name: "Su Litre Sinyal"
+    unit_of_measurement: "sinyal/L"
+    accuracy_decimals: 0
+    update_interval: 300s
+    lambda: return id(su_k);
+  - platform: dallas_temp
+    name: "Dis Sicaklik"
+    update_interval: 30s
+  - platform: template
+    name: "Egim On Arka"
+    id: egim_on
+    unit_of_measurement: "°"
+    accuracy_decimals: 1
+    update_interval: 1s
+    lambda: |-
+      float ax = id(ivme_x).state, ay = id(ivme_y).state, az = id(ivme_z).state;
+      Egim e = karavan_egim(ham_egim(ax, ay, az) - id(ofs_x), ham_egim(ay, ax, az) - id(ofs_y),
+                            id(sensor_yonu).active_index().value_or(0));
+      return e.on;
+  - platform: template
+    name: "Egim Sol Sag"
+    id: egim_yan
+    unit_of_measurement: "°"
+    accuracy_decimals: 1
+    update_interval: 1s
+    lambda: |-
+      float ax = id(ivme_x).state, ay = id(ivme_y).state, az = id(ivme_z).state;
+      Egim e = karavan_egim(ham_egim(ax, ay, az) - id(ofs_x), ham_egim(ay, ax, az) - id(ofs_y),
+                            id(sensor_yonu).active_index().value_or(0));
+      return e.yan;
+  - platform: mpu6050
+    address: 0x68
+    accel_x:
+      name: "Ivme X"
+      id: ivme_x
+      filters:
+        - exponential_moving_average:
+            alpha: 0.3
+            send_every: 1
+    accel_y:
+      name: "Ivme Y"
+      id: ivme_y
+      filters:
+        - exponential_moving_average:
+            alpha: 0.3
+            send_every: 1
+    accel_z:
+      name: "Ivme Z"
+      id: ivme_z
+      filters:
+        - exponential_moving_average:
+            alpha: 0.3
+            send_every: 1
+    update_interval: 1s
+  - platform: bme280_i2c
+    address: 0x77
+    temperature:
+      name: "Ic Sicaklik"
+    humidity:
+      name: "Ic Nem"
+    pressure:
+      name: "Basinc"
+    update_interval: 30s
+
+one_wire:
+  - platform: gpio
+    pin: GPIO4
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO27
+      mode:
+        input: true
+        pulldown: true
+    name: "Hareket"
+    device_class: motion
+    filters:
+      - delayed_off: 10s
+    on_press:
+      - if:
+          condition:
+            lambda: 'return id(alarm_durum).state == "kurulu" || id(alarm_durum).state == "caliyor";'
+          then:
+            - script.execute: ntfy_gonder
+  # Deponun dışına yapıştırılan temassız sensör (XKC-Y25-V), su varken ON
+  # Sensör 5V ile beslenir; boşta 4.2-5V verir, ESP32 en fazla 3.3V kaldırır!
+  # Sensör çıkışının içinde ~15k direnç var, üst direnç gerekmiyor:
+  # sarı kablo - GPIO32 -[20k]-[10k]- GND  (masada USB beslemeyle su varken 3.0V ölçüldü)
+  - platform: gpio
+    pin:
+      number: GPIO32
+      mode:
+        input: true
+        pulldown: true
+    name: "Su Alt Seviye"
+    id: su_alt
+    filters:
+      # Yolda çalkalanma yanlış ölçüm yapmasın
+      - delayed_on_off: 20s
+    on_release:
+      # Su sensörün altına indi: doldurmadan beri kullanılan su artık biliniyor
+      - lambda: |-
+          if (id(su_olculdu)) return;
+          id(su_olculdu) = true;
+          float kullanilan = id(su_depo).state - id(su_alt_litre).state;
+          if (kullanilan < 10 || id(su_sinyal) < 100) return;
+          float k = id(su_sinyal) / kullanilan;
+          // Tam doldurmadan tuşa basıldıysa ölçüm saçma çıkar, ortalamayı bozmasın
+          float ref = id(su_kayit_n) ? id(su_k) : 450;
+          if (k < ref * 0.6f || k > ref * 1.6f) {
+            ESP_LOGW("su", "Kalibrasyon reddedildi: %.0f sinyal/L (ortalama %.0f)", k, id(su_k));
+            id(su_red) = k;
+          } else {
+            id(su_red) = 0;
+            id(su_kayit)[id(su_kayit_n) % ${su_kal_sayi}] = k;
+            id(su_kayit_n)++;
+            int n = std::min(id(su_kayit_n), ${su_kal_sayi});
+            float t = 0;
+            for (int i = 0; i < n; i++) t += id(su_kayit)[i];
+            id(su_k) = t / n;
+            ESP_LOGI("su", "Kalibrasyon: %.0f sinyal/L, yeni ortalama %.0f (%d ölçüm)", k, id(su_k), n);
+          }
+          // Sayaç bundan sonra sensör seviyesinden devam etsin
+          id(su_sinyal) = kullanilan * id(su_k);
+      - component.update: su_kalibrasyon
+  - platform: template
+    name: "Kayma"
+    lambda: |-
+      if (!id(konaklama).state) return false;
+      float a = id(egim_on).state, b = id(egim_yan).state;
+      if (isnan(a) || isnan(b)) return {};
+      return fabsf(a - id(ref_on)) > ${kayma_esigi} || fabsf(b - id(ref_yan)) > ${kayma_esigi};
+    filters:
+      # Biri içeride yürüyünce yanlış uyarı vermesin
+      - delayed_on: 30s
+  - platform: daly_bms_ble
+    daly_bms_ble_id: bms
+    online_status:
+      name: "BMS Bagli"
+    charging:
+      name: "Aku Sarj MOS"
+    discharging:
+      name: "Aku Desarj MOS"
+    balancing:
+      name: "Aku Dengeleme"
+
+interval:
+  - interval: 10s
+    then:
+      - lambda: |-
+          auto a = id(alarm_durum).state;
+          if (a != "kurulu" && a != "caliyor") return;
+          if (!gps_iyi(id(gps_uydu).state, id(gps_hdop).state, id(gps_enlem).state)) return;
+          // Alarm GPS uydu bulmadan kurulduysa ilk iyi konumu referans al
+          if (isnan(id(gps_ref_enlem))) {
+            id(gps_ref_enlem) = id(gps_enlem).state;
+            id(gps_ref_boylam) = id(gps_boylam).state;
+            return;
+          }
+          float m = mesafe_m(id(gps_ref_enlem), id(gps_ref_boylam), id(gps_enlem).state, id(gps_boylam).state);
+          if (m > id(gps_esik).state) id(gps_asim)++; else id(gps_asim) = 0;
+          if (id(gps_asim) >= 2 && !id(gps_ntfy).is_running()) {
+            ESP_LOGW("gps", "Karavan %.0f m yer değiştirdi, bildirim gönderiliyor", m);
+            id(gps_ntfy).execute();
+          }

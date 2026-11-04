@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8">
+<title>Dokunmatik kalibrasyon</title>
+<style>
+html,body{margin:0;height:100%;background:#111;color:#eee;font-family:sans-serif;overflow:hidden;user-select:none}
+#hedef{position:absolute;width:60px;height:60px;margin:-30px 0 0 -30px;pointer-events:none}
+#hedef:before,#hedef:after{content:'';position:absolute;background:#fd5}
+#hedef:before{left:29px;top:0;width:2px;height:60px}
+#hedef:after{top:29px;left:0;height:2px;width:60px}
+#hedef i{position:absolute;left:20px;top:20px;width:16px;height:16px;border:2px solid #fd5;border-radius:50%}
+#yazi{position:absolute;left:0;right:0;top:40%;text-align:center;font-size:22px;pointer-events:none}
+#yazi small{display:block;color:#999;font-size:15px;margin-top:8px}
+</style></head><body>
+<div id="hedef"><i></i></div>
+<div id="yazi"></div>
+<script src="mqtt.min.js"></script>
+<script>
+// Ekrana sırayla hedef koyar; dokunulan yer ile hedefi karşılaştırıp
+// libinput kalibrasyon matrisini hesaplar ve MQTT ile gönderir.
+var H=[[.1,.1],[.9,.1],[.9,.9],[.1,.9],[.5,.5]],n=0,olc=[],son=0;
+var cl=mqtt.connect('ws://localhost:9001');
+function el(i){return document.getElementById(i)}
+function goster(){
+ if(n<H.length){
+  el('hedef').style.display='';
+  el('hedef').style.left=H[n][0]*innerWidth+'px';
+  el('hedef').style.top=H[n][1]*innerHeight+'px';
+  el('yazi').innerHTML='Sarı artının ortasına kalemle ya da tırnakla bastırıp bırakın ('+(n+1)+' / '+H.length+')'+
+   '<small>İmleç başka yere gitse de önemli değil</small>';
+ }
+}
+// Doğrusal en küçük kareler: hedef = a*x + b*y + c
+function coz(k){
+ var A=[[0,0,0],[0,0,0],[0,0,0]],B=[0,0,0];
+ olc.forEach(function(o,i){var v=[o[0],o[1],1];
+  for(var r=0;r<3;r++){B[r]+=v[r]*H[i][k];for(var c=0;c<3;c++)A[r][c]+=v[r]*v[c]}});
+ for(var p=0;p<3;p++){ // Gauss eleme
+  var m=p;for(var r=p+1;r<3;r++)if(Math.abs(A[r][p])>Math.abs(A[m][p]))m=r;
+  var t=A[p];A[p]=A[m];A[m]=t;t=B[p];B[p]=B[m];B[m]=t;
+  for(r=p+1;r<3;r++){var f=A[r][p]/A[p][p];for(var c=p;c<3;c++)A[r][c]-=f*A[p][c];B[r]-=f*B[p]}
+ }
+ var x=[0,0,0];for(p=2;p>=0;p--){var s=B[p];for(c=p+1;c<3;c++)s-=A[p][c]*x[c];x[p]=s/A[p][p]}
+ return x;
+}
+function bitir(){
+ el('hedef').style.display='none';
+ var X=coz(0),Y=coz(1),M=X.concat(Y,[0,0,1]);
+ var hata=0;olc.forEach(function(o,i){
+  var x=X[0]*o[0]+X[1]*o[1]+X[2],y=Y[0]*o[0]+Y[1]*o[1]+Y[2];
+  hata=Math.max(hata,Math.hypot((x-H[i][0])*innerWidth,(y-H[i][1])*innerHeight))});
+ var veri={matris:M.map(function(v){return +v.toFixed(5)}),olcumler:olc,en_buyuk_hata_px:Math.round(hata),ekran:[innerWidth,innerHeight]};
+ cl.publish('karavan/dokunmatik_kalibrasyon',JSON.stringify(veri));
+ el('yazi').innerHTML='Bitti, ölçümler gönderildi.<small>Claude\'a haber verebilirsiniz. Tekrar denemek için ekrana 3 sn basılı tutun.</small>';
+}
+var basla=0;
+addEventListener('pointerdown',function(e){basla=Date.now()});
+addEventListener('pointerup',function(e){
+ var t=Date.now();
+ if(n>=H.length){if(t-basla>2500){n=0;olc=[];goster()}return}
+ if(t-son<600)return; // dirençli ekranda çift algılamayı yok say
+ son=t;
+ olc.push([e.clientX/innerWidth,e.clientY/innerHeight]);
+ n++;
+ if(n<H.length)goster();else bitir();
+});
+addEventListener('contextmenu',function(e){e.preventDefault()});
+goster();
+</script>
+</body></html>

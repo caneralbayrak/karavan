@@ -1,0 +1,10 @@
+# ESPHome derleme klasörü
+/.esphome/
+# Şifreler (örneği: secrets.ornek.yaml)
+/secrets.yaml
+# Yedekler ve eski denemeler
+*.yedek*
+esph.yedek
+karavan-test.yaml
+__pycache__/
+/bms/

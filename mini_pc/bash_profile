@@ -1,0 +1,10 @@
+# antiX'in normal ayarlarını yükle
+[ -f ~/.profile ] && . ~/.profile
+# 1. konsolda (otomatik giriş) kiosk oturumunu başlat; kapanırsa 3 sn sonra yeniden başlat.
+# Kurtarma: SSH ile ya da Ctrl+Alt+F2'de normal giriş.
+if [ -z "$DISPLAY" ] && [ "$(tty)" = /dev/tty1 ]; then
+  while true; do
+    startx -- vt1 >"$HOME/.kiosk-x.log" 2>&1
+    sleep 3
+  done
+fi

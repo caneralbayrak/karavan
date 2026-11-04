@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Karavan</title>
+<style>
+body{margin:0;background:#111;color:#eee;font-family:sans-serif}
+h1{font-size:18px;margin:0;padding:10px 14px;background:#1c1c1c}
+#st{float:right;font-size:14px;color:#aaa}
+.g{display:flex;flex-wrap:wrap;padding:6px}
+.c{flex:1 1 150px;margin:6px;padding:12px;background:#1e1e1e;border-radius:10px;min-width:140px}
+.c small{color:#999;display:block;font-size:13px}
+.c b{font-size:30px}
+.c.old b{color:#555}
+.c.on b{color:#f55}
+#bub{width:110px;height:110px;border:2px solid #555;border-radius:50%;position:absolute;left:55px;top:95px}
+#dot{width:18px;height:18px;border-radius:50%;background:#4c8;position:absolute;left:46px;top:46px}
+.c.wide{flex-basis:100%}
+.sv{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
+#kv{width:220px;height:300px;border:2px solid #555;border-radius:14px 14px 6px 6px;position:relative;flex:none;margin-top:18px}
+#kv:before{content:'ÖN';position:absolute;top:-20px;left:0;right:0;text-align:center;color:#999;font-size:13px}
+.ks{position:absolute;width:86px;padding:6px 4px;background:#2a2a2a;border-radius:8px;text-align:center;font-size:12px;color:#aaa}
+.ks i{display:block;font-style:normal;font-size:16px;font-weight:bold;color:#4c8}
+.ks.indir i{color:#e94}.ks.kaldir i{color:#59f}.ks.hedef{outline:3px solid #fd5}
+#k_sol_on{left:6px;top:6px}#k_sag_on{right:6px;top:6px}
+#k_sol_arka{left:6px;bottom:6px}#k_sag_arka{right:6px;bottom:6px}
+.sv .bilgi{flex:1 1 220px}
+#talimat{font-size:22px;font-weight:bold;margin:6px 0 10px;min-height:28px}
+#egimler{color:#aaa;font-size:14px}
+#konak.izle{outline:2px solid #4c8}
+#konak.kayma{background:#5a3a00}
+#konak.kayma b{color:#fb4}
+details{margin-top:10px;color:#aaa}
+details label{display:block;margin:8px 0;font-size:14px}
+select,input{font-size:16px;padding:6px;background:#333;color:#eee;border:1px solid #555;border-radius:6px}
+input{width:80px}
+#soc{font-size:44px}
+#akubar{width:160px;height:14px;background:#333;border-radius:7px;overflow:hidden;margin-top:6px}
+#akubar div{height:100%;width:0;background:#4c8}
+.ak{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:14px;color:#aaa}
+.ak span{min-width:120px}.ak em{font-style:normal;color:#eee;font-size:18px;display:block}
+#aku.dusuk #soc{color:#fb4}#aku.kritik #soc{color:#f55}
+button{font-size:16px;padding:10px 16px;border:0;border-radius:8px;background:#333;color:#eee;margin-top:8px;width:100%}
+#suk{width:70px;height:110px;border:2px solid #555;border-radius:6px;position:relative;overflow:hidden;flex:none}
+#suk div{position:absolute;left:0;right:0;bottom:0;height:0;background:#38c}
+#su.az #sul{color:#fb4}#su.az #suk div{background:#e94}
+#sul{font-size:44px}
+#al.bek b{color:#fd5}
+#al.kur b{color:#e94}
+#al.cal{animation:fl .4s infinite alternate}
+#al.cal b{color:#fff}
+@keyframes fl{to{background:#b00}}
+button:active{background:#555}
+button.bekle{background:#2a4a6a;color:#cde}
+#sor{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9;align-items:center;justify-content:center}
+#sor div{background:#222;border:1px solid #555;border-radius:12px;padding:18px;max-width:560px;margin:10px}
+#sor p{font-size:19px;margin:0 0 12px;white-space:pre-line}
+#sor span{display:flex;gap:12px}
+#sor button{font-size:20px;padding:16px}
+#sor #sor_e{background:#2a6a3a}
+#gps .gb{font-size:14px;color:#aaa;margin-top:6px;line-height:1.5}
+#gps .gb em{font-style:normal;color:#eee}
+#gps a{color:#59f}
+/* Küçük ekran (karavandaki 800x480 dokunmatik): sekmeler */
+#sk{display:none}
+@media (max-height:540px){
+ h1{display:flex;align-items:center;gap:6px;padding:4px 6px}
+ h1 #st{order:3;margin-left:auto;font-size:13px}
+ #sk{display:flex;gap:6px;flex:1;margin-left:8px}
+ #sk button{margin:0;width:auto;flex:1;padding:12px 4px;font-size:18px;background:#2a2a2a}
+ #sk button.sec{background:#38c;color:#fff}
+ .g{padding:2px}
+ body[data-s=genel] .c:not([data-s=genel]),body[data-s=aku] .c:not([data-s=aku]),
+ body[data-s=su] .c:not([data-s=su]),body[data-s=sev] .c:not([data-s=sev]){display:none}
+ .c[data-s=genel]{flex-basis:160px}
+ #sev #kv{margin-top:16px}
+}
+</style></head><body data-s="genel">
+<h1>Karavan <span id="sk"><button data-t="genel">Genel</button><button data-t="aku">Akü</button><button data-t="su">Su</button><button data-t="sev">Seviye</button></span> <span id="st">bağlanıyor…</span></h1>
+<div class="g">
+<div class="c" data-s="genel" id="ic"><small>İç sıcaklık</small><b>–</b></div>
+<div class="c" data-s="genel" id="nem"><small>İç nem</small><b>–</b></div>
+<div class="c" data-s="genel" id="dis"><small>Dış sıcaklık</small><b>–</b></div>
+<div class="c" data-s="genel" id="bas"><small>Basınç</small><b>–</b></div>
+<div class="c" data-s="genel" id="hr"><small>Hareket</small><b>–</b></div>
+<div class="c" data-s="genel" id="al"><small>Alarm</small><b>kapalı</b><button id="ab">Alarmı kur</button></div>
+<div class="c" data-s="genel" id="gps"><small>Konum</small><b>–</b>
+ <div class="gb"><div id="g_k">–</div><div>Rakım <em id="g_r">–</em> · Hız <em id="g_h">–</em></div>
+ <a id="g_l" target="_blank" style="display:none">Haritada aç</a></div></div>
+<div class="c" data-s="genel" id="konak"><small>Konaklama</small><b>kapalı</b>
+ <button id="kb">Konaklamaya hazır</button>
+ <button id="kk" style="display:none">Kontrol ettim, yeni konumu kaydet</button></div>
+<div class="c wide" data-s="aku" id="aku"><small>Akü <span id="bmsd"></span></small>
+ <div class="sv">
+  <div><b id="soc">–</b><div id="akubar"><div></div></div></div>
+  <div class="bilgi">
+   <div class="ak">
+    <span>Voltaj<em id="a_v">–</em></span><span>Akım<em id="a_a">–</em></span>
+    <span>Güç<em id="a_w">–</em></span><span>Kalan<em id="a_k">–</em></span>
+    <span>Süre<em id="a_s">–</em></span><span>Hücreler<em id="a_h">–</em></span>
+    <span>Sıcaklık<em id="a_t">–</em></span><span>Durum<em id="a_d">–</em></span>
+   </div>
+   <button id="bb">Telefon uygulaması için Bluetooth'u bırak</button>
+  </div>
+ </div>
+</div>
+<div class="c wide" data-s="su" id="su"><small>Temiz su</small>
+ <div class="sv">
+  <div id="suk"><div></div></div>
+  <div class="bilgi">
+   <b id="sul">–</b>
+   <div class="ak">
+    <span>Akış<em id="s_a">–</em></span><span>Dolduruldu<em id="s_d">–</em></span>
+    <span>Pompa<em id="s_p">–</em></span>
+   </div>
+   <button id="sdb">Depoyu doldurdum</button>
+   <button id="spb">Pompayı aç</button>
+   <details><summary>Kalibrasyon</summary>
+    <div class="ak" style="margin-top:8px">
+     <span>Litre başına sinyal<em id="s_k">–</em></span>
+    </div>
+    <p style="font-size:14px">Ölçüm kaydı: <span id="s_l">–</span></p>
+    <p style="font-size:13px">Su alttaki sensörün altına her indiğinde yeni ölçüm eklenir; son ölçümlerin ortalaması kullanılır.
+     Doğru ölçüm için tuşa sadece depo tam dolunca basın.</p>
+    <label>Depo hacmi: <input id="s_hacim" type="number" min="10" max="500"> L</label>
+    <label>Sensörün altında kalan su: <input id="s_alt" type="number" min="0" max="200"> L</label>
+    <button id="ssb">Kalibrasyon kaydını sıfırla</button>
+   </details>
+  </div>
+ </div>
+</div>
+<div class="c wide" data-s="sev" id="sev"><small>Seviye</small>
+ <div class="sv">
+  <div id="kv">
+   <div class="ks" id="k_sol_on">Sol ön<i>–</i></div>
+   <div class="ks" id="k_sag_on">Sağ ön<i>–</i></div>
+   <div class="ks" id="k_sol_arka">Sol arka<i>–</i></div>
+   <div class="ks" id="k_sag_arka">Sağ arka<i>–</i></div>
+   <div id="bub"><div id="dot"></div></div>
+  </div>
+  <div class="bilgi">
+   <div id="talimat">–</div>
+   <div id="egimler">Ön-arka: – · Sol-sağ: –</div>
+   <button id="rb">Sesli seviye ayarını başlat</button>
+   <details><summary>Ayarlar</summary>
+    <label>Sensör kartındaki X oku:
+     <select id="yon">
+      <option value="X one">öne bakıyor</option><option value="X arkaya">arkaya bakıyor</option>
+      <option value="X sola">sola bakıyor</option><option value="X saga">sağa bakıyor</option>
+     </select></label>
+    <label>Ön-arka ayaklar arası: <input id="boy" type="number" min="100" max="1500"> cm</label>
+    <label>Sol-sağ ayaklar arası: <input id="en" type="number" min="100" max="400"> cm</label>
+    <label>Yöntem:
+     <select id="yontem">
+      <option value="orta">indir ve kaldır (yükseklik aynı kalır)</option>
+      <option value="indir">sadece indir (en yüksek köşeye göre)</option>
+     </select></label>
+    <button id="dk">Bu konumu düz kabul et (sıfırla)</button>
+   </details>
+  </div>
+ </div>
+</div>
+</div>
+<div id="sor"><div><p id="sor_m"></p><span><button id="sor_h">Vazgeç</button><button id="sor_e">Evet</button></span></div></div>
+<script src="mqtt.min.js"></script>
+<script>
+// Mini PC kioskta ?broker=localhost ile açılır; diğer cihazlar varsayılanı kullanır
+var BROKER='ws://'+(new URLSearchParams(location.search).get('broker')||'192.168.1.117')+':9001';
+var DEV='sensor-dugumu';
+var map={ic_sicaklik:['ic',1,' °C'],ic_nem:['nem',0,' %'],basinc:['bas',0,' hPa'],dis_sicaklik:['dis',1,' °C']};
+var seen={};
+function el(i){return document.getElementById(i)}
+function val(i){return el(i).getElementsByTagName('b')[0]}
+
+// --- Hafif onay kutusu (Firefox'un confirm() penceresi yavaş cihazda ağır açılıyor) ---
+var sorEvet=null;
+function sor(m,evet){el('sor_m').textContent=m;sorEvet=evet;el('sor').style.display='flex'}
+el('sor_h').onclick=function(){el('sor').style.display='none';sorEvet=null};
+el('sor_e').onclick=function(){el('sor').style.display='none';var f=sorEvet;sorEvet=null;if(f)f()};
+// --- ESP'ye komut giden düğmeler: anında tepki, yanıt gelene kadar ikinci basışı yok say ---
+function bekle(b,yazi,geriAl){
+ if(b.classList.contains('bekle'))return false;
+ b.classList.add('bekle');b.textContent=yazi;
+ clearTimeout(b._z);b._z=setTimeout(function(){b.classList.remove('bekle');geriAl()},5000);
+ return true;
+}
+function bitti(b){clearTimeout(b._z);b.classList.remove('bekle')}
+
+// --- Ses: hazır wav dosyalarını sırayla çalar ---
+var kuyruk=[],oynat=new Audio();
+function sonraki(){var k=kuyruk.shift();if(!k)return;oynat.src='sesler/'+k+'.wav';oynat.play().catch(function(){})}
+oynat.onended=sonraki;oynat.onerror=sonraki;
+function soyle(liste,kes){
+ if(kes){kuyruk=[];oynat.pause()}
+ kuyruk=kuyruk.concat(liste);
+ if(oynat.paused||oynat.ended)setTimeout(sonraki,60);
+}
+function konusuyor(){return !oynat.paused&&!oynat.ended}
+
+// --- Seviye ---
+// on > 0: önü yüksek, yan > 0: sağı yüksek (derece)
+var egimOn=NaN,egimYan=NaN,egimZaman=0;
+var ayar={boy:400,en:200,yontem:'orta'};
+var AYAR_TOPIC='karavan/ayar';
+var ESIK_CM=1; // bundan az fark varsa köşe düz sayılır
+var ADLAR={sol_on:'Sol ön',sag_on:'Sağ ön',sol_arka:'Sol arka',sag_arka:'Sağ arka'};
+function koseler(){
+ var tp=Math.tan(egimOn*Math.PI/180),tr=Math.tan(egimYan*Math.PI/180),L=ayar.boy/2,W=ayar.en/2;
+ var z={sol_on:L*tp-W*tr,sag_on:L*tp+W*tr,sol_arka:-L*tp-W*tr,sag_arka:-L*tp+W*tr};
+ var ust=Math.max(z.sol_on,z.sag_on,z.sol_arka,z.sag_arka),r={};
+ for(var k in z){
+  // "indir" = ayağı uzat, köşe yükselir. "kaldır" = ayağı topla, köşe alçalır.
+  var fark=ayar.yontem==='indir'?ust-z[k]:-z[k];
+  r[k]={k:k,is:fark>0?'indir':'kaldir',cm:Math.abs(fark)};
+ }
+ return r;
+}
+function cmSes(cm){var c=Math.round(cm);return c<1?'cm_az':c>20?'cm_cok':'cm_'+c}
+var rehber=false,hedef=null,sonSes=0,duzSay=0,veriYokSes=0;
+function enIyiTalimat(r){
+ var l=[];for(var k in r)if(r[k].cm>=ESIK_CM)l.push(r[k]);
+ if(!l.length)return null;
+ // eşitlikte önce indir
+ l.sort(function(a,b){return (b.cm-a.cm)||(a.is==='indir'?-1:1)});
+ // Aynı köşe hâlâ ayar istiyorsa ve fark küçükse hedefi değiştirme (zıplamasın)
+ if(hedef&&r[hedef.k].cm>=ESIK_CM&&r[hedef.k].is===hedef.is&&l[0].cm-r[hedef.k].cm<1)return r[hedef.k];
+ return l[0];
+}
+function seviyeGoster(){
+ if(isNaN(egimOn)||isNaN(egimYan))return;
+ var c=function(v){return Math.max(-5,Math.min(5,v))*9},d=el('dot');
+ d.style.left=(46+c(egimYan))+'px';
+ d.style.top=(46-c(egimOn))+'px';
+ var r=koseler(),t=enIyiTalimat(r);
+ d.style.background=t?'#e94':'#4c8';
+ for(var k in r){
+  var e=el('k_'+k),x=r[k];
+  e.className='ks'+(x.cm>=ESIK_CM?' '+x.is:'')+(t&&t.k===k?' hedef':'');
+  e.getElementsByTagName('i')[0].textContent=x.cm>=ESIK_CM?(x.is==='indir'?'indir ':'kaldır ')+Math.round(x.cm)+' cm':'✓';
+ }
+ el('talimat').textContent=t?ADLAR[t.k]+' ayağı '+(t.is==='indir'?'indir':'kaldır')+', ~'+Math.round(t.cm)+' cm':'Karavan düz ✓';
+ var y=function(v,a,b){return (v>=0?'+':'')+v.toFixed(1)+'° '+(Math.abs(v)<0.1?'':v>0?a:b)};
+ el('egimler').textContent='Ön-arka: '+y(egimOn,'(ön yüksek)','(arka yüksek)')+' · Sol-sağ: '+y(egimYan,'(sağ yüksek)','(sol yüksek)');
+}
+function rehberAyarla(a){
+ rehber=a;hedef=null;duzSay=0;sonSes=0;
+ el('rb').textContent=a?'Sesli seviye ayarını durdur':'Sesli seviye ayarını başlat';
+ if(a)soyle(['basla'],true);else kuyruk=[];
+}
+el('rb').onclick=function(){rehberAyarla(!rehber)};
+setInterval(function(){
+ if(!rehber)return;
+ var simdi=Date.now();
+ if(simdi-egimZaman>5000){
+  if(simdi-veriYokSes>15000){soyle(['veri_yok'],true);veriYokSes=simdi}
+  return;
+ }
+ var t=enIyiTalimat(koseler());
+ if(!t){
+  if(++duzSay>=3){rehberAyarla(false);soyle(['duz'],true)}
+  return;
+ }
+ duzSay=0;
+ if(!hedef||hedef.k!==t.k||hedef.is!==t.is){
+  soyle((hedef?['tamam']:[]).concat([t.k+'_'+t.is,cmSes(t.cm)]),!!hedef);
+  hedef=t;sonSes=simdi;
+ }else if(simdi-sonSes>8000&&!konusuyor()){
+  soyle([cmSes(t.cm)]);sonSes=simdi;
+ }
+},1000);
+
+// --- Konaklama (kontrolü ESP32 yapar, panel sadece gösterir ve konuşur) ---
+var konakAcik=false,kayma=false,kaymaSes=0,konakIstek=null;
+function konakGoster(){
+ el('konak').className='c'+(kayma?' kayma':konakAcik?' izle':'');
+ val('konak').textContent=kayma?'KONUM DEĞİŞTİ':konakAcik?'izleniyor':'kapalı';
+ bitti(el('kb'));
+ el('kb').textContent=konakAcik?'Konaklamayı bitir':'Konaklamaya hazır';
+ el('kk').style.display=kayma?'':'none';
+}
+function konakKomut(on){konakIstek=on;cl.publish(DEV+'/switch/konaklama/command',on?'ON':'OFF')}
+el('kb').onclick=function(){if(bekle(this,konakAcik?'Kapatılıyor…':'Açılıyor…',konakGoster))konakKomut(!konakAcik)};
+el('kk').onclick=function(){
+ cl.publish(DEV+'/switch/konaklama/command','OFF');
+ setTimeout(function(){konakKomut(true)},800);
+};
+setInterval(function(){
+ if(kayma&&Date.now()-kaymaSes>300000){soyle(['kayma']);kaymaSes=Date.now()}
+},5000);
+
+// --- Akü (BMS verisini ESP32 Bluetooth ile okur) ---
+var aku={},akuZaman=0,akuUyari=0,bmsBagli=false,bmsBaglanti=true;
+var AKU_DUSUK=20,AKU_KRITIK=10;
+function akuGoster(){
+ var a=aku,f=function(v,d,b){return v===undefined||isNaN(v)?'–':v.toFixed(d)+b};
+ el('soc').textContent=f(a.aku_doluluk,0,' %');
+ var bar=el('akubar').firstChild;
+ bar.style.width=(a.aku_doluluk||0)+'%';
+ bar.style.background=a.aku_doluluk<AKU_KRITIK?'#f55':a.aku_doluluk<AKU_DUSUK?'#fb4':'#4c8';
+ el('aku').className='c wide'+(a.aku_doluluk<AKU_KRITIK?' kritik':a.aku_doluluk<AKU_DUSUK?' dusuk':'')+(Date.now()-akuZaman>60000?' old':'');
+ el('a_v').textContent=f(a.aku_voltaj,2,' V');
+ el('a_a').textContent=f(a.aku_akim,1,' A');
+ el('a_w').textContent=f(a.aku_guc,0,' W');
+ el('a_k').textContent=f(a.aku_kalan,0,' Ah');
+ // Kalan süre: toplam kapasite = kalan / doluluk
+ var s='–',A=a.aku_akim,kap=a.aku_kalan/(a.aku_doluluk/100);
+ if(A<-0.3)s='~'+(a.aku_kalan/-A).toFixed(0)+' sa (bitiş)';
+ else if(A>0.3&&kap>0)s='~'+((kap-a.aku_kalan)/A).toFixed(1)+' sa (dolum)';
+ else if(!isNaN(A))s='boşta';
+ el('a_s').textContent=s;
+ el('a_h').textContent=f(a.aku_min_hucre,3,'')+' – '+f(a.aku_max_hucre,3,' V');
+ el('a_t').textContent=f(a.aku_sicaklik_1,0,' °C')+(a.aku_sicaklik_2!==undefined?' / '+f(a.aku_sicaklik_2,0,' °C'):'');
+ el('a_d').textContent={Idle:'boşta',Charging:'şarj oluyor',Discharging:'kullanılıyor',Offline:'bağlantı yok',Unknown:'bilinmiyor'}[a.durum]||a.durum||'–';
+ if(a.hatalar&&a.hatalar!=='Offline')el('a_d').textContent+=' ⚠ '+a.hatalar;
+ el('bmsd').textContent=!bmsBaglanti?'(Bluetooth bırakıldı)':bmsBagli?'':'(bağlı değil)';
+ bitti(el('bb'));
+ el('bb').textContent=bmsBaglanti?"Telefon uygulaması için Bluetooth'u bırak":'Bluetooth bağlantısını geri al';
+}
+function akuSesKontrol(){
+ var d=aku.aku_doluluk;if(d===undefined||isNaN(d))return;
+ // akuUyari: 0 normal, 1 düşük uyarısı verildi, 2 kritik uyarısı verildi (25 üstüne çıkınca sıfırlanır)
+ if(d<AKU_KRITIK&&akuUyari<2){soyle(['aku_kritik']);akuUyari=2}
+ else if(d<AKU_DUSUK&&akuUyari<1){soyle(['aku_dusuk']);akuUyari=1}
+ else if(d>=AKU_DUSUK+5)akuUyari=0;
+}
+el('bb').onclick=function(){if(bekle(this,'Bekleyin…',akuGoster))cl.publish(DEV+'/switch/bms_baglanti/command',bmsBaglanti?'OFF':'ON')};
+
+// --- Temiz su (hesabı ESP32 yapar, panel gösterir ve konuşur) ---
+var su={},suZaman=0,suAlt=null,suDolumZaman=0,pompa=null;
+var SU_TOPIC='karavan/su_doldurma';
+function suGoster(){
+ var l=su.su_kalan,depo=su.su_depo_litre||100;
+ el('sul').textContent=l===undefined?'–':'~'+Math.round(l)+' L';
+ el('suk').firstChild.style.height=l===undefined?0:Math.min(100,l/depo*100)+'%';
+ el('su').className='c wide'+(suAlt===false?' az':'')+(Date.now()-suZaman>60000?' old':'');
+ el('s_a').textContent=su.su_akis===undefined?'–':su.su_akis>0.05?su.su_akis.toFixed(1)+' L/dk':'yok';
+ var g=suDolumZaman?Math.floor((Date.now()-suDolumZaman)/86400000):-1;
+ el('s_d').textContent=g<0?'–':g===0?'bugün':g+' gün önce';
+ el('s_p').textContent=pompa===null?'–':pompa?'açık':'kapalı';
+ bitti(el('spb'));
+ el('spb').textContent=pompa?'Pompayı kapat':'Pompayı aç';
+ el('s_k').textContent=su.su_litre_sinyal===undefined?'–':Math.round(su.su_litre_sinyal);
+ if(document.activeElement!==el('s_hacim')&&su.su_depo_litre!==undefined)el('s_hacim').value=su.su_depo_litre;
+ if(document.activeElement!==el('s_alt')&&su.su_sensor_alti_litre!==undefined)el('s_alt').value=su.su_sensor_alti_litre;
+}
+el('sdb').onclick=function(){
+ sor('Depo şu an tam dolu mu?\n(Tam dolu değilse kalibrasyon yanlış öğrenir.)',function(){
+  cl.publish(DEV+'/button/su_depo_dolu/command','PRESS');
+  cl.publish(SU_TOPIC,String(Date.now()),{retain:true});
+  soyle(['su_dolu'],true);
+ });
+};
+// Pompa normalde konaklamayla birlikte açılıp kapanır (ESP32 yapar); bu düğme elle değiştirmek için
+el('spb').onclick=function(){if(bekle(this,pompa?'Kapatılıyor…':'Açılıyor…',suGoster))cl.publish(DEV+'/switch/su_pompasi/command',pompa?'OFF':'ON')};
+el('ssb').onclick=function(){
+ sor('Kalibrasyon kaydı silinsin ve katalog değerine (450) dönülsün mü?',function(){
+  cl.publish(DEV+'/button/su_kalibrasyon_sifirla/command','PRESS');
+ });
+};
+el('s_hacim').onchange=function(){var v=parseInt(this.value);if(v>=10)cl.publish(DEV+'/number/su_depo_litre/command',String(v))};
+el('s_alt').onchange=function(){var v=parseInt(this.value);if(v>=0)cl.publish(DEV+'/number/su_sensor_alti_litre/command',String(v))};
+
+// --- GPS (konum ESP32'den gelir) ---
+var gps={},gpsZaman=0;
+function gpsGoster(){
+ var g=gps,fix=g.gps_enlem!==undefined&&!isNaN(g.gps_enlem)&&!isNaN(g.gps_boylam);
+ var u=g.gps_uydu===undefined?'–':Math.round(g.gps_uydu)+' uydu';
+ val('gps').textContent=fix?u:'aranıyor';
+ el('gps').className='c'+(Date.now()-gpsZaman>60000?' old':'');
+ el('g_k').textContent=fix?g.gps_enlem.toFixed(5)+', '+g.gps_boylam.toFixed(5):(g.gps_uydu?u+' görülüyor':'uydu bekleniyor');
+ el('g_r').textContent=fix&&!isNaN(g.gps_rakim)?Math.round(g.gps_rakim)+' m':'–';
+ el('g_h').textContent=fix&&!isNaN(g.gps_hiz)?Math.round(g.gps_hiz)+' km/h':'–';
+ var l=el('g_l');
+ if(fix){l.href='https://maps.google.com/?q='+g.gps_enlem.toFixed(6)+','+g.gps_boylam.toFixed(6);l.style.display=''}
+ else l.style.display='none';
+}
+
+// --- Ayarlar ---
+function ayarGoster(){el('boy').value=ayar.boy;el('en').value=ayar.en;el('yontem').value=ayar.yontem}
+function ayarKaydet(){
+ var b=parseInt(el('boy').value),e=parseInt(el('en').value);
+ if(b>=100)ayar.boy=b;if(e>=100)ayar.en=e;
+ ayar.yontem=el('yontem').value;
+ cl.publish(AYAR_TOPIC,JSON.stringify(ayar),{retain:true});
+ seviyeGoster();
+}
+el('boy').onchange=el('en').onchange=el('yontem').onchange=ayarKaydet;
+el('yon').onchange=function(){cl.publish(DEV+'/select/sensor_yonu/command',el('yon').value)};
+el('dk').onclick=function(){
+ sor('Karavan şu an gerçekten düz mü? (Bir su terazisiyle kontrol et.)\nBu konum sıfır noktası olarak kaydedilecek.',function(){
+  cl.publish(DEV+'/button/duz_kabul_et/command','PRESS');
+  soyle(['duz_kabul'],true);
+ });
+};
+ayarGoster();
+// Alarm: kapali -> bekliyor (çıkış süresi) -> kurulu -> caliyor
+var GECIKME=30; // alarm kurulduktan sonra dışarı çıkmak için saniye
+var AL_TOPIC='karavan/alarm';
+var alDurum='kapali',kalan=0,sayac=null,ac=null,siren=null;
+function sirenBasla(){
+ if(siren||!ac)return;
+ ac.resume();
+ var o=ac.createOscillator(),g=ac.createGain(),lfo=ac.createOscillator(),lg=ac.createGain();
+ o.type='square';o.frequency.value=900;g.gain.value=0.3;
+ lfo.frequency.value=1.5;lg.gain.value=350;
+ lfo.connect(lg);lg.connect(o.frequency);o.connect(g);g.connect(ac.destination);
+ o.start();lfo.start();siren=[o,lfo];
+}
+function sirenDur(){if(siren){siren[0].stop();siren[1].stop();siren=null}}
+function alGoster(){
+ var y={kapali:'kapalı',bekliyor:'çıkış: '+kalan+' sn',kurulu:'KURULU',caliyor:'ALARM!'};
+ var s={kapali:'',bekliyor:' bek',kurulu:' kur',caliyor:' cal'};
+ val('al').textContent=y[alDurum];
+ el('al').className='c'+s[alDurum];
+ el('ab').textContent=alDurum==='kapali'?'Alarmı kur':'Alarmı kapat';
+}
+// --- Sekmeler (sadece küçük ekranda görünür) ---
+var sekmeZaman=0;
+function sekme(t){
+ document.body.dataset.s=t;
+ var b=document.querySelectorAll('#sk button');
+ for(var i=0;i<b.length;i++)b[i].className=b[i].dataset.t===t?'sec':'';
+}
+document.querySelectorAll('#sk button').forEach(function(b){b.onclick=function(){sekme(b.dataset.t);sekmeZaman=Date.now()}});
+sekme('genel');
+// 5 dakika dokunulmazsa Genel'e dön
+setInterval(function(){if(document.body.dataset.s!=='genel'&&Date.now()-sekmeZaman>300000)sekme('genel')},30000);
+
+function alAyarla(d,yayinla){
+ if(d==='caliyor')sekme('genel');
+ if(sayac&&d!=='bekliyor'){clearInterval(sayac);sayac=null}
+ alDurum=d;
+ if(d==='caliyor')sirenBasla();else sirenDur();
+ if(yayinla&&d!=='bekliyor')cl.publish(AL_TOPIC,d,{retain:true});
+ alGoster();
+}
+el('ab').onclick=function(){
+ ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+ ac.resume();
+ if(alDurum!=='kapali'){alAyarla('kapali',true);return}
+ kalan=GECIKME;alAyarla('bekliyor');
+ sayac=setInterval(function(){
+  kalan--;
+  if(kalan<=0)alAyarla('kurulu',true);else alGoster();
+ },1000);
+};
+
+var cl=mqtt.connect(BROKER,{reconnectPeriod:3000});
+cl.on('connect',function(){
+ el('st').textContent='bağlı';
+ cl.subscribe(AL_TOPIC);
+ cl.subscribe(AYAR_TOPIC);
+ cl.subscribe(DEV+'/sensor/+/state');
+ cl.subscribe(DEV+'/binary_sensor/+/state');
+ cl.subscribe(DEV+'/switch/+/state');
+ cl.subscribe(DEV+'/select/sensor_yonu/state');
+ cl.subscribe(DEV+'/text_sensor/su_kalibrasyon/state');
+ cl.subscribe(DEV+'/number/+/state');
+ cl.subscribe(SU_TOPIC);
+});
+cl.on('close',function(){el('st').textContent='bağlantı yok'});
+function mesaj(t,m){
+ var s=m.toString(),p=t.split('/');
+ if(t===AL_TOPIC){
+  if(s!==alDurum&&/^(kapali|kurulu|caliyor)$/.test(s))alAyarla(s,false);
+  return;
+ }
+ if(t===AYAR_TOPIC){
+  try{var a=JSON.parse(s);for(var k in a)ayar[k]=a[k]}catch(e){}
+  ayarGoster();seviyeGoster();
+  return;
+ }
+ if(t===SU_TOPIC){suDolumZaman=parseInt(s)||0;suGoster();return}
+ if(/^gps_/.test(p[2])){gps[p[2]]=parseFloat(s);gpsZaman=Date.now();gpsGoster();return}
+ if(/^su_/.test(p[2])){
+  if(p[2]==='su_kalibrasyon')el('s_l').textContent=s;
+  else if(p[2]==='su_pompasi')pompa=(s==='ON');
+  else if(p[2]==='su_alt_seviye'){
+   var w=(s==='ON');
+   // sadece su varken yok olunca konuş (sayfa açılışında değil)
+   if(suAlt===true&&!w)soyle(['su_az']);
+   suAlt=w;
+  }else{var sv=parseFloat(s);if(isNaN(sv))return;su[p[2]]=sv;if(p[2]==='su_kalan')suZaman=Date.now()}
+  suGoster();
+  return;
+ }
+ if(p[1]==='sensor'&&(p[2]==='egim_on_arka'||p[2]==='egim_sol_sag')){
+  var v=parseFloat(s);
+  if(isNaN(v))return;
+  if(p[2]==='egim_on_arka')egimOn=v;else egimYan=v;
+  egimZaman=Date.now();
+  seviyeGoster();
+  return;
+ }
+ if(/^aku_/.test(p[2])||p[2]==='bms_bagli'||p[2]==='bms_baglanti'){
+  if(p[2]==='bms_bagli')bmsBagli=(s==='ON');
+  else if(p[2]==='bms_baglanti')bmsBaglanti=(s==='ON');
+  else if(p[2]==='aku_durum')aku.durum=s;
+  else if(p[2]==='aku_hatalar')aku.hatalar=s;
+  else if(p[1]==='sensor'){var av=parseFloat(s);if(isNaN(av))return;aku[p[2]]=av;akuZaman=Date.now();if(p[2]==='aku_doluluk')akuSesKontrol()}
+  else return;
+  akuGoster();
+  return;
+ }
+ if(p[1]==='switch'&&p[2]==='konaklama'){
+  konakAcik=(s==='ON');
+  // sadece bu panelden basıldıysa konuş (sayfa açılışında konuşmasın)
+  if(konakIstek!==null&&konakIstek===konakAcik){soyle([konakAcik?'konak_ac':'konak_kapa'],true);konakIstek=null}
+  konakGoster();
+  return;
+ }
+ if(p[1]==='select'){el('yon').value=s;return}
+ if(p[1]==='binary_sensor'&&p[2]==='kayma'){
+  var yeni=(s==='ON');
+  if(yeni&&!kayma){soyle(['kayma'],true);kaymaSes=Date.now();sekme('genel')}
+  kayma=yeni;konakGoster();
+  return;
+ }
+ if(p[1]==='sensor'&&map[p[2]]){
+  var d=map[p[2]],v=parseFloat(s);
+  if(isNaN(v))return;
+  val(d[0]).textContent=v.toFixed(d[1])+d[2];
+  seen[d[0]]=Date.now();
+  el(d[0]).className='c';
+ }else if(p[1]==='binary_sensor'&&p[2]==='hareket'){
+  var on=(s==='ON');
+  el('hr').className='c'+(on?' on':'');
+  val('hr').textContent=on?'VAR':'yok';
+  if(on&&alDurum==='kurulu')alAyarla('caliyor',true);
+ }
+}
+// Tek bir mesajdaki hata MQTT bağlantısını durdurmasın
+cl.on('message',function(t,m){try{mesaj(t,m)}catch(e){console.error(t,e)}});
+setInterval(function(){
+ for(var k in seen){if(Date.now()-seen[k]>120000)el(k).className='c old'}
+ el('sev').className='c wide'+(Date.now()-egimZaman>10000?' old':'');
+ akuGoster();
+ suGoster();
+ gpsGoster();
+},5000);
+</script></body></html>

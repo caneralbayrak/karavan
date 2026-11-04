@@ -1,0 +1,8 @@
+#!/bin/sh
+# Karavan kiosk oturumu: masaüstü yok, sadece ses sunucusu + panel
+[ -n "$XDG_RUNTIME_DIR" ] || export XDG_RUNTIME_DIR=/tmp/$(id -u)/.run
+mkdir -p "$XDG_RUNTIME_DIR" && chmod 700 "$XDG_RUNTIME_DIR"
+# 1 saat dokunulmazsa ekran kararır, dokununca açılır
+xset s 3600 0; xset s blank; xset -dpms
+/usr/local/bin/pipewire-start &
+exec dbus-launch --exit-with-session "$HOME/karavan/kiosk.sh"

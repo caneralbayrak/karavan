@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" font-family="DejaVu Sans, sans-serif">
+<rect width="1600" height="1000" fill="#fff"/>
+<text x="800" y="60" font-size="46" font-weight="bold" text-anchor="middle">Su seviye sensörü (XKC-Y25-V) bağlantısı</text>
+
+<!-- Sensör -->
+<rect x="60" y="180" width="300" height="420" rx="24" fill="#eee" stroke="#000" stroke-width="5"/>
+<text x="210" y="250" font-size="40" font-weight="bold" text-anchor="middle">SENSÖR</text>
+<text x="210" y="295" font-size="28" text-anchor="middle">XKC-Y25-V</text>
+<g font-size="32" font-weight="bold">
+<text x="80" y="375">Kahverengi</text>
+<text x="80" y="455">Mavi</text>
+<text x="80" y="535">Sarı</text>
+<text x="80" y="590" fill="#555">Siyah</text>
+</g>
+
+<!-- ESP32 -->
+<rect x="1240" y="180" width="300" height="560" rx="24" fill="#dde8ff" stroke="#000" stroke-width="5"/>
+<text x="1390" y="250" font-size="44" font-weight="bold" text-anchor="middle">ESP32</text>
+<g font-size="40" font-weight="bold">
+<text x="1270" y="375">VIN</text>
+<text x="1270" y="455">GND</text>
+<text x="1270" y="700">32</text>
+</g>
+
+<!-- Kahverengi: VIN -->
+<line x1="300" y1="365" x2="1260" y2="365" stroke="#8B4513" stroke-width="14"/>
+<!-- Mavi: GND -->
+<line x1="300" y1="445" x2="1260" y2="445" stroke="#0050ff" stroke-width="14"/>
+<!-- Siyah: boşta -->
+<line x1="300" y1="580" x2="420" y2="580" stroke="#000" stroke-width="10"/>
+<text x="435" y="592" font-size="30" fill="#c00" font-weight="bold">BOŞTA (bantla)</text>
+
+<!-- Sarı: A noktası -->
+<line x1="300" y1="525" x2="560" y2="525" stroke="#e6b800" stroke-width="14"/>
+<circle cx="560" cy="525" r="22" fill="#000"/>
+<text x="545" y="495" font-size="44" font-weight="bold">A</text>
+
+<!-- A -> B düz kablo (10k buradan kaldırıldı) -->
+<line x1="560" y1="525" x2="940" y2="525" stroke="#e6b800" stroke-width="14"/>
+<text x="700" y="635" font-size="30" font-weight="bold" text-anchor="middle" fill="#c00">A–B arası direnç YOK</text><text x="700" y="673" font-size="30" font-weight="bold" text-anchor="middle" fill="#c00">düz kablo</text>
+<circle cx="940" cy="525" r="22" fill="#000"/>
+<text x="925" y="495" font-size="44" font-weight="bold">B</text>
+
+<!-- B -> ESP 32 (yeşil) -->
+<polyline points="940,525 1100,525 1100,690 1260,690" fill="none" stroke="#00a040" stroke-width="14"/>
+<text x="1110" y="650" font-size="28" fill="#00a040" font-weight="bold">EN SON</text>
+
+<!-- 20k + 10k seri, B -> GND -->
+<line x1="940" y1="525" x2="940" y2="580" stroke="#000" stroke-width="8"/>
+<rect x="910" y="580" width="60" height="150" rx="14" fill="#f3d9a4" stroke="#000" stroke-width="5"/>
+<rect x="910" y="600" width="60" height="20" fill="#e00000"/>
+<rect x="910" y="635" width="60" height="20" fill="#000"/>
+<rect x="910" y="670" width="60" height="20" fill="#ff8000"/>
+<text x="990" y="670" font-size="40" font-weight="bold">20k</text>
+<line x1="940" y1="730" x2="940" y2="760" stroke="#000" stroke-width="8"/>
+<circle cx="940" cy="745" r="12" fill="#000"/>
+<rect x="910" y="760" width="60" height="150" rx="14" fill="#f3d9a4" stroke="#000" stroke-width="5"/>
+<rect x="910" y="780" width="60" height="20" fill="#8B4513"/>
+<rect x="910" y="815" width="60" height="20" fill="#000"/>
+<rect x="910" y="850" width="60" height="20" fill="#ff8000"/>
+<text x="990" y="850" font-size="40" font-weight="bold">10k</text>
+<line x1="940" y1="910" x2="940" y2="940" stroke="#0050ff" stroke-width="12"/>
+<line x1="890" y1="940" x2="990" y2="940" stroke="#000" stroke-width="10"/>
+<line x1="908" y1="958" x2="972" y2="958" stroke="#000" stroke-width="10"/>
+<line x1="926" y1="976" x2="954" y2="976" stroke="#000" stroke-width="10"/>
+<text x="1010" y="965" font-size="40" font-weight="bold">GND</text>
+
+<!-- Ölçüm notu -->
+<rect x="60" y="680" width="760" height="270" rx="20" fill="#fff6cc" stroke="#c90" stroke-width="4"/>
+<text x="90" y="735" font-size="34" font-weight="bold">Multimetre: B ile GND arası</text>
+<text x="90" y="795" font-size="32">Su varken (ışık yanar):  ~2,8 V</text>
+<text x="90" y="850" font-size="32">Su yokken:  0 V</text>
+<text x="90" y="910" font-size="30" fill="#c00" font-weight="bold">3,5 V üstü → DUR, yeşil kabloyu takma!</text>
+</svg>

@@ -1,0 +1,4 @@
+#!/bin/sh
+cd ~/karavan || exit 1
+if [ -t 0 ]; then TTY="-it"; else TTY=""; fi
+exec docker run --rm -v "$PWD":/config --network host $TTY ghcr.io/esphome/esphome "$@"
