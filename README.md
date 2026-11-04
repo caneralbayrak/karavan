@@ -1,5 +1,7 @@
 # Karavan Otomasyonu
 
+*[English](README.en.md)*
+
 Çekme karavan için ev yapımı akıllı sistem: ESP32 sensör düğümü (ESPHome) + MQTT ile çalışan dokunmatik panel.
 Panel karavandaki küçük bir Linux mini PC'de çalışıyor, uyarıları Türkçe sesli veriyor, önemli olaylarda telefona (ntfy) bildirim gönderiyor.
 
