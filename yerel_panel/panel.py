@@ -31,6 +31,7 @@ SIREN = os.path.expanduser('~/.cache/karavan-siren.wav')
 GECIKME = 30        # alarm kurulduktan sonra dışarı çıkmak için saniye
 ESIK_CM = 1         # bundan az fark varsa köşe düz sayılır
 AKU_DUSUK, AKU_KRITIK = 20, 10
+KARART_SN = 300    # 5 dk dokunulmazsa ekran kararır (akü tasarrufu)
 
 # Renkler (web paneliyle aynı)
 BG, KART, YAZI, SOLUK, ESKI = '#111', '#1e1e1e', '#eee', '#999', '#555'
@@ -274,6 +275,7 @@ class Panel:
         self._su(self.sayfalar['su'])
         self._seviye(self.sayfalar['sev'])
         self._onay_kutusu()
+        self._perde_kur()
         # Düğme dışına (yazı, kart, boşluk) düşen dokunuşlar: yakındaki düğmeye ver
         kok.bind_all('<ButtonRelease-1>', self._bosluga_dokunus, add='+')
         self.sekme('genel')
@@ -307,7 +309,43 @@ class Panel:
         self.st = tk.Label(u, text='bağlanıyor', bg='#1c1c1c', fg=SOLUK, font=F(9), wraplength=40)
         self.st.place(x=760, y=15, width=40)
 
+    # ---------------- ekran karartma
+    # Kararmayı X'e bırakmıyoruz: X kararmış ekranı açan dokunuşu panele de
+    # iletiyor ve parmağın altındaki düğmeye basılıyordu. Panel kendisi karartır;
+    # ekranın üstüne siyah bir perde koyar, uyandıran dokunuş perdeye gider.
+    def _perde_kur(self):
+        self.son_dokunus, self.karanlik = time.time(), False
+        self.perde = tk.Frame(self.kok, bg='black', cursor='none')
+        self.perde.bind('<ButtonPress-1>', lambda e: self.uyan())
+        self.kok.bind_all('<ButtonPress-1>', lambda e: setattr(self, 'son_dokunus', time.time()), add='+')
+        self._xset('s', 'off')      # X'in kendi karartmasını kapat
+
+    @staticmethod
+    def _xset(*a):
+        try:
+            subprocess.Popen(('xset',) + a, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except OSError:
+            pass
+
+    def karart(self):
+        if self.karanlik:
+            return
+        self.karanlik = True
+        self.perde.place(x=0, y=0, width=self.kok.winfo_width(), height=self.kok.winfo_height())
+        self.perde.tkraise()
+        self._xset('s', 'activate')     # arka ışığı/ekranı kapat
+
+    def uyan(self):
+        self.son_dokunus = time.time()
+        if not self.karanlik:
+            return
+        self.karanlik = False
+        self.perde.place_forget()
+        self._xset('s', 'reset')
+
     def _bosluga_dokunus(self, e):
+        if e.widget is self.perde:
+            return      # ekranı uyandıran dokunuş, düğmeye basma
         if isinstance(e.widget, Dugme):
             return      # düğmenin kendi işleyicisi halletti
         w = Dugme.hedef(self.kok, e.x_root, e.y_root)
@@ -558,6 +596,7 @@ class Panel:
                 self.ses.soyle(['kayma'], True)
                 self.kayma_ses = time.time()
                 self.sekme('genel')
+                self.uyan()
             self.kayma = yeni
             self.konak_goster()
             return
@@ -601,6 +640,7 @@ class Panel:
     def al_ayarla(self, d, yayin):
         if d == 'caliyor':
             self.sekme('genel')
+            self.uyan()
         if self.sayac and d != 'bekliyor':
             self.kok.after_cancel(self.sayac)
             self.sayac = None
@@ -903,6 +943,8 @@ class Panel:
         # 5 dakika dokunulmazsa Genel'e dön
         if self.aktif != 'genel' and time.time() - self.sekme_zaman > 300:
             self.sekme('genel')
+        if time.time() - self.son_dokunus > KARART_SN and self.al_durum != 'caliyor' and not self.rehber:
+            self.karart()
         self.kok.after(30000, self._otuz_saniyede)
 
 
