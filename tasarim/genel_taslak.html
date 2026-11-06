@@ -1,0 +1,44 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:800px;height:480px;background:#0d1117;font-family:'DejaVu Sans';color:#e8edf3;overflow:hidden}
+.ust{height:60px;background:#161b22;display:flex;align-items:center;padding:0 6px;gap:6px;border-bottom:1px solid #222a35}
+.sek{width:142px;height:50px;border-radius:12px;background:#1f2630;display:flex;align-items:center;justify-content:center;gap:8px;font-size:19px;color:#b8c2cf}
+.sek.on{background:linear-gradient(#2f81f7,#1f6feb);color:#fff;box-shadow:0 0 12px #2f81f755}
+.e{font-family:'Noto Color Emoji'}
+.saat{margin-left:auto;text-align:right;padding-right:6px}
+.saat b{font-size:26px;display:block;line-height:26px}.saat small{font-size:12px;color:#7d8896}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#3fb950;margin-right:4px;box-shadow:0 0 6px #3fb950}
+.g{position:absolute;border-radius:14px;background:#161b22;border:1px solid #222a35;padding:10px 14px}
+.lb{font-size:14px;color:#8b96a5;display:flex;align-items:center;gap:6px}
+.v{font-size:30px;font-weight:bold;margin-top:4px}
+.v small{font-size:17px;color:#8b96a5;font-weight:normal}
+.ico{font-size:22px}
+.btn{position:absolute;left:14px;right:14px;bottom:12px;height:54px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:bold}
+.bar{height:12px;border-radius:6px;background:#26303c;margin-top:8px;overflow:hidden}.bar i{display:block;height:100%;border-radius:6px}
+</style></head><body>
+<div class="ust">
+ <div class="sek on"><span class="e">🏠</span>Genel</div>
+ <div class="sek"><span class="e">🔋</span>Akü</div>
+ <div class="sek"><span class="e">💧</span>Su</div>
+ <div class="sek"><span class="e">📐</span>Seviye</div>
+ <div class="saat"><b>03:45</b><small><span class="dot"></span>bağlı</small></div>
+</div>
+<!-- iklim -->
+<div class="g" style="left:8px;top:70px;width:189px;height:90px;border-left:4px solid #3fb950"><div class="lb"><span class="e ico">🌡️</span>İç sıcaklık</div><div class="v" style="color:#56d364">18.0<small> °C</small></div></div>
+<div class="g" style="left:205px;top:70px;width:189px;height:90px;border-left:4px solid #58a6ff"><div class="lb"><span class="e ico">💦</span>İç nem</div><div class="v">42<small> %</small></div></div>
+<div class="g" style="left:402px;top:70px;width:189px;height:90px;border-left:4px solid #79c0ff"><div class="lb"><span class="e ico">🌲</span>Dış sıcaklık</div><div class="v" style="color:#79c0ff">7.2<small> °C</small></div></div>
+<div class="g" style="left:599px;top:70px;width:193px;height:90px;border-left:4px solid #d2a8ff"><div class="lb"><span class="e ico">🌤️</span>Basınç</div><div class="v">1006<small> hPa</small></div><div style="position:absolute;right:12px;top:12px;font-size:13px;color:#56d364">▲ sabit</div></div>
+<!-- durum -->
+<div class="g" style="left:8px;top:170px;width:255px;height:210px;background:linear-gradient(#3a1416,#161b22);border-color:#f85149"><div class="lb"><span class="e ico">🚶</span>Hareket</div>
+ <div class="v" style="font-size:44px;color:#ff7b72;margin-top:22px;text-shadow:0 0 14px #f8514988">VAR</div><div style="color:#8b96a5;font-size:14px;margin-top:6px">şimdi algılandı</div></div>
+<div class="g" style="left:271px;top:170px;width:255px;height:210px"><div class="lb"><span class="e ico">🛡️</span>Alarm</div>
+ <div class="v" style="font-size:34px;margin-top:14px;color:#8b96a5">kapalı</div>
+ <div class="btn" style="background:linear-gradient(#da3633,#b62324)">Alarmı kur</div></div>
+<div class="g" style="left:534px;top:170px;width:258px;height:210px"><div class="lb"><span class="e ico">🏕️</span>Konaklama</div>
+ <div class="v" style="font-size:34px;margin-top:14px;color:#8b96a5">kapalı</div>
+ <div class="btn" style="background:linear-gradient(#238636,#1a7f37)">Konaklamaya hazır</div></div>
+<!-- özet -->
+<div class="g" style="left:8px;top:390px;width:255px;height:82px"><div class="lb"><span class="e ico">🔋</span>Akü <b style="margin-left:auto;color:#56d364;font-size:20px">87 %</b></div><div class="bar"><i style="width:87%;background:linear-gradient(90deg,#238636,#56d364)"></i></div><div style="font-size:12px;color:#8b96a5;margin-top:5px">13.3 V · −2.1 A · ~3 gün</div></div>
+<div class="g" style="left:271px;top:390px;width:255px;height:82px"><div class="lb"><span class="e ico">💧</span>Temiz su <b style="margin-left:auto;color:#58a6ff;font-size:20px">62 L</b></div><div class="bar"><i style="width:62%;background:linear-gradient(90deg,#1f6feb,#58a6ff)"></i></div><div style="font-size:12px;color:#8b96a5;margin-top:5px">depo 100 L · pompa açık</div></div>
+<div class="g" style="left:534px;top:390px;width:258px;height:82px"><div class="lb"><span class="e ico">📍</span>Konum</div><div style="font-size:20px;font-weight:bold;margin-top:6px">aranıyor…</div><div style="font-size:12px;color:#8b96a5;margin-top:2px">uydu bekleniyor</div></div>
+</body></html>

@@ -2,6 +2,8 @@
 
 *[Türkçe](README.md)*
 
+![Home page of the panel on the mini PC](tasarim/ekran_genel.png)
+
 A home-made smart system for a towed caravan: an ESP32 sensor node (ESPHome) plus a touchscreen panel connected over MQTT.
 The panel runs on a small Linux mini PC inside the caravan, gives spoken warnings in Turkish, and sends phone notifications (ntfy) for important events.
 
