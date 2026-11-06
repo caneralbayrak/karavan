@@ -8,3 +8,7 @@ esph.yedek
 karavan-test.yaml
 __pycache__/
 /bms/
+
+# Mini PC deneme kayıtları ve paket arşivi (içeriği arkadas_paketi/ klasöründe)
+mini_pc/denemeler/
+mini_pc/cellebrite_seri_paketi.zip

@@ -1,0 +1,32 @@
+#!/bin/sh
+# WiFi bekcisi: baglanti koparsa sirayla yeniden baglan -> connman yeniden baslat -> surucu yeniden yukle.
+LOG=/var/log/wifi-bekci.log
+KAYIT() { echo "$(date '+%F %T') $*" >> $LOG; tail -n 300 $LOG > $LOG.tmp && mv $LOG.tmp $LOG; }
+hata=0
+KAYIT "bekci basladi"
+while true; do
+  gw=$(ip route | awk '/^default/{print $3; exit}')
+  if [ -n "$gw" ] && ping -c 1 -W 3 "$gw" >/dev/null 2>&1; then
+    [ $hata -gt 0 ] && KAYIT "baglanti geri geldi ($hata deneme sonra), modem $gw"
+    hata=0
+  else
+    hata=$((hata + 1))
+    KAYIT "baglanti yok (sayac $hata, modem '${gw:-yok}')"
+    case $hata in
+      2|4)
+        connmanctl scan wifi >/dev/null 2>&1
+        for s in $(connmanctl services 2>/dev/null | awk '/^\*A/{print $NF}'); do
+          KAYIT "yeniden baglaniyor: $s"
+          connmanctl connect "$s" >/dev/null 2>&1 && break
+        done ;;
+      6|12)
+        KAYIT "connman yeniden baslatiliyor"; sv restart connman >/dev/null 2>&1 ;;
+      8|16)
+        KAYIT "wifi surucusu yeniden yukleniyor"
+        modprobe -r rtl8723ae; sleep 3; modprobe rtl8723ae; sleep 5; sv restart connman >/dev/null 2>&1 ;;
+      20)
+        hata=0 ;;
+    esac
+  fi
+  sleep 30
+done

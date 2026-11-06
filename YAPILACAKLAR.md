@@ -41,13 +41,29 @@ Ayrı terminalde `ssh karavan@192.168.1.117` ile bağlanıp sırayla:
       `sudo sed -i 's/^listener 1883O$/listener 1883/' /etc/mosquitto/conf.d/ag.conf && sudo sv restart mosquitto`
 - [x] Deneme: `sudo reboot` → ~1-2 dk sonra ekranda panel tam ekran açılmalı
 - [ ] Karavana geçince mini PC şifresini değiştir (`passwd`)
+- [x] Seri yuvaları aç (2026-11-06): TARGET (sağ) = ttyS0, SOURCE (sol) = ttyS1; açılışta otomatik açılıyor. Ayrıntı: mini_pc/BENIOKU.md
+- [x] ttyS0'daki giriş ekranı (getty) kalıcı kapatıldı (2026-11-06)
+- [x] WiFi kopması (2026-11-06): sürücü güç tasarrufu kapatıldı + WiFi bekçisi servisi kuruldu
+- [ ] Birkaç gün sonra WiFi bekçisinin kaydına bak (`/var/log/wifi-bekci.log`): kopma oldu mu, kaç sn'de geri geldi (Claude bakar)
+- [ ] **Seri yuva GND'sini doğrula:** mini PC KAPALIYKEN multimetre bip ayarında beyaz-yeşil ve kahverengi teller şasiyle (USB soketinin metali) bip veriyor mu
+- [x] Çift DHCP düzeltildi (2026-11-06): dhcpcd kapatıldı, mini PC evde sabit .117; yeniden başlatma testi geçti
+- [ ] Karavana taşınırken: karavan modeminde mini PC'ye sabit IP (ya da connman'da elle), ESP'nin broker adresini yeni ağa göre ayarla
+- [ ] (İsteğe bağlı) Dahili hoparlörler: yazılımla açılamadı; kasa bir gün açılırsa hoparlör kablosu kartta takılı mı bak. Şimdilik kulaklık çıkışı + harici amfi
 
 ### Sonra
 - [ ] ESP'ye yeni yazılımı yükle (Claude yapabilir)
 - [ ] Kışın su tesisatını boşalt (akış sensörü donarsa çatlar)
+- [ ] **2. ESP32 (aynı karttan 3 tane var):** akü ve ısıtıcının yanına konacak; akü BMS Bluetooth'u (1. ESP'den buraya taşınacak, -97 dBm sorunu), ısıtıcı mavi tel, CC1101, belki gaz sensörleri. 1. ESP: eğim, hareket, GPS, su, iç sıcaklık. 1. ESP yazılımı 2026-11-04'te hafızanın ~%82'si.
+- [ ] **Montaj şekli (kullanıcının kararı 2026-11-05):** PCB yok, prototip doğrudan karavana; delikli plaket + ESP'ler dişi pin yuvasında + vidalı klemensler. 12V girişine sigorta, plastik kutu, kablolara gerginlik önleyici (kelepçe). Claude her plaket için renkli yerleşim şeması çizecek.
+- [ ] **Kartların yeri: akünün yanı** (kullanıcının kararı, boş yer var). Oradan kabine kablo gerekenler: BME280 (iç sıcaklık; I2C uzun kabloda sorun çıkarır → yerine DS18B20 ya da kısa kablo), PIR (görüş lazım), GPS anteni (gökyüzü), su sensörleri. MPU6050 sağlam bir yere vidalanırsa her yerde olur.
+- [ ] **Işık röleleri (8'li röle kartı):** mekanik anahtarlarla birlikte çalışsın → anahtarları vavien (iki yollu) anahtarla değiştir, rölenin COM/NO/NC uçlarıyla vavien bağlantısı yap (düz paralel bağlantıda anahtar açıkken röle söndüremez). Işığın gerçek durumunu okumak için lamba hattından optokuplörle/bölücüyle geri bildirim. Röle başına ~70 mA çekiyor (akü tüketimi). Kullanıcıya göre anahtarlar 3 uçlu; vavien mi ışıklı mı belli değil → karavanda elektrik kesik iken multimetre bip testiyle iki konumda A-B/A-C/B-C ölç, fotoğraf çek.
+- [ ] **Dizel ısıtıcı (Sensation, Çin malı; 433 MHz kumandası var, dijital paneli var):** (1) panel kablosundaki mavi veri telini ESP32 ile sadece dinle → durum/sıcaklık/hata kodu (github.com/timmchugh11/Chinese-Diesel-Heater---ESPHome); (2) açma/kapamayı CC1101 ile kumandayı taklit ederek yap (github.com/jakkik/DieselHeaterRF). Önce: panelin, kablonun ve fişin fotoğrafı; tel renklerini multimetreyle ölç. Panel sökülebiliyor: eve getirip içini açıp PCB üzerindeki pin yazılarına (5V/GND/TX/RX vb.) bakabiliriz (kullanıcının fikri). **Termostat:** bu modelin panelinde termostat yok (satıcı "panel değişirse olur" dedi); ESP kendi termostatını yapsın: BME280 iç sıcaklığına göre ısıtıcının gücünü kumandayla artır/azalt, sık aç-kapa yapma (buji ve karbonlanma). Uzaktan çalıştırmadan önce MQ-7 CO sensörü kurulsun.
+- [ ] Proje bitince: prototip karavanda oturunca KiCad ile şema + PCB çiz, dosyaları (Gerber dahil) GitHub'a koy; başkaları kendi yaptırabilsin (kullanıcının fikri 2026-11-05)
+- [ ] Proje bitince: panellere dil seçeneği (Türkçe/İngilizce); sesli uyarılar için İngilizce Piper sesiyle ses dosyaları da üretilecek
 
 ## Alışveriş listesi
 
+> 2026-11-06: mini PC'nin seri portu TTL çıktı → telsiz–mini PC için 2. MAX3232 gerekebilir (APRS bölümüne bak).
 > 2026-11-03: YF-S201, XKC-Y25-V, NEO-M8N, MAX3232 geldi. 2026-11-04: masada GPS, seviye ve akış sensörü denendi, üçü de çalışıyor.
 > 2026-11-02: siparişler verildi (telsiz fişi ve USB-RS232 kontrol sonrasına kalmıştı). Gelenleri işaretle.
 
@@ -66,15 +82,17 @@ Ayrı terminalde `ssh karavan@192.168.1.117` ile bağlanıp sırayla:
 - [x] 1 × MAX3232 TTL↔RS-232 modülü (NEO-M8N TX → MAX3232 → telsiz) — sipariş verildi
 - [x] Telsizin 8 pinli mikrofon soketine uygun fiş (pin 7 = veri girişi, pin 8 = toprak) — elde var (yoksa telsiz açılıp içeriden lehimlenecek)
       ya da arka 15 pinli opsiyon soketi fişi (pin 15 = veri girişi, pin 1 = toprak)
-- [x] iGate için USB-RS232 GEREKMİYOR — mini PC'de RS-232 (DB9) soketi var
+- [x] iGate için USB-RS232 GEREKMİYOR — mini PC'nin TARGET RJ45 yuvası seri port (ttyS0), 2026-11-06'da açıldı
+- [ ] **Mini PC yuvası 3.3 V TTL (RS-232 DEĞİL!)** → telsiz ile mini PC arasına da MAX3232 lazım. Elimizdeki MAX3232'nin 2. kanalı kullanılabilir ama GPS (ESP) ile mini PC farklı yerdeyse **2. MAX3232 modülü al**. MAX3232'yi **3.3 V** ile besle. Telsizi yuvaya DOĞRUDAN bağlama (±12 V girişe zarar verir)
+      Bağlantı: beyaz-mavi (TX) → MAX3232 T-IN, mavi (RX) ← MAX3232 R-OUT, beyaz-yeşil/kahverengi → GND
 - (Ek GPS gerekmez: NEO-M8N TX hem ESP GPIO16'ya hem MAX3232'ye; GPS'i telsizin 10V/13.2V çıkışından doğrudan besleme)
-- Sorulacak: telsiz modeli (4021/4025?), firmware yüklü ve APRS yayında denendi mi? (mini PC DB9: VAR)
+- Sorulacak: telsiz modeli (4021/4025?), firmware yüklü ve APRS yayında denendi mi? (mini PC'de DB9 YOK; seri port RJ45 TARGET yuvası, TTL)
 
 ### Diğer (konuşulacak, acele yok)
 - [ ] Gaz / CO (MQ-6, MQ-7 elde var; karavanda pilli CO ve LPG dedektörü zaten var)
 
 ## Yazılım işleri (Claude yapacak)
-- [ ] **APRS iGate köprüsü:** telsizin seri çıkışı (RS-232, APRS-IS biçiminde metin) → mini PC ttyS0 → SIM interneti varken APRS-IS'e gönderen betik
+- [ ] **APRS iGate köprüsü:** telsizin seri çıkışı (RS-232, APRS-IS biçiminde metin) → MAX3232 → mini PC TARGET yuvası (ttyS0, TTL) → SIM interneti varken APRS-IS'e gönderen betik
 - [ ] (Sonra) Eski iPad'i panel olarak dene: web paneli eski Safari'de çalışıyor mu? Mini PC ekranı zayıf (rezistif, bazı dokunuşları kaçırıyor)
 - [x] **Mini PC için tarayıcısız panel** (2026-11-01): yerel_panel/panel.py, kioskta varsayılan
 - [ ] **Rakım:** GPS + MS5611 (GY-63) birleşimi; panelde rakım ve yol boyu tırmanış

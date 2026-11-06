@@ -1,0 +1,27 @@
+CELLEBRITE TOUCH - SOURCE/TARGET SERI YUVALARINI ACMA
+=====================================================
+
+TEK KOMUT:
+   1) Bu klasoru cihaza kopyalayin (USB bellek vb.)
+   2) Terminalde klasore girin:   cd arkadas_paketi
+   3) Calistirin:                 sudo sh kur.sh
+
+SONUC:
+   SOURCE (sol yuva)  = /dev/ttyS1
+   TARGET (sag yuva)  = /dev/ttyS0
+   Pin 5 BEYAZ-MAVI = TX (cihaz gonderir)
+   Pin 4 MAVI       = RX (cihaz alir)
+   Sinyal 3.3 V TTL - RS-232 DEGIL!
+   RS-232 cihaz (telsiz vb.) icin araya MAX3232 (3.3 V) koyun.
+   5 V'luk klasik MAX232 kullanirsaniz R1OUT -> mavi hattina 10k/20k bolucu koyun.
+
+DOSYALAR:
+   kur.sh         tek komut kurulum (busybox ile calisir, Python gerekmez)
+   cpld_seri.sh   ac / kapa / durum   (sudo sh /opt/cpld_seri.sh ac)
+   cpld_seri.py   ayni isin Python surumu (sudo python3 cpld_seri.py ac)
+   dongu.py       Python dongu testi  (python3 dongu.py /dev/ttyS0)
+   cpld_tara.py   bizim kullandigimiz bit tarama betigi (sadece bilgi icin, CALISTIRMAYIN)
+   ANLATIM.html   ayrintili anlatim (tarayicida acin)
+
+UYARI: CPLD'de sadece 0x293 yazmacina dokunun. Bir sey ters giderse cihazi
+kapatip acin; CPLD fabrika ayarina doner.

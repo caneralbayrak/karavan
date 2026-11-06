@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cellebrite Touch: SOURCE/TARGET seri yuvalarını Linux'ta açmak</title>
+<style>
+:root{--bg:#fbfaf7;--fg:#1f1d1a;--mut:#6b665e;--line:#e4e0d8;--acc:#1d5fa8;--warn:#a5361c;--ok:#2d6a3e;--code:#f2efe8}
+@media (prefers-color-scheme:dark){:root{--bg:#1b1a18;--fg:#ece8e1;--mut:#a39d93;--line:#38352f;--acc:#7fb0ea;--warn:#f08a6c;--ok:#86c99a;--code:#25231f}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:760px;margin:0 auto;padding:32px 20px 64px}
+h1{font-size:1.7rem;line-height:1.25;margin:0 0 8px}h2{font-size:1.2rem;margin:36px 0 8px;padding-top:12px;border-top:1px solid var(--line)}
+.lead{color:var(--mut);margin:0 0 20px}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:.95rem}th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line)}th{color:var(--mut);font-weight:600}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.88em;background:var(--code);padding:1px 5px;border-radius:4px}
+.blk{position:relative;margin:10px 0 16px}pre{background:var(--code);border:1px solid var(--line);border-radius:8px;padding:14px;overflow-x:auto;font:13.5px/1.5 ui-monospace,Menlo,Consolas,monospace;margin:0}
+button.cp{position:absolute;top:8px;right:8px;font:13px system-ui;padding:4px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);cursor:pointer}
+.note{border-left:4px solid var(--acc);padding:8px 14px;margin:14px 0;background:var(--code);border-radius:0 6px 6px 0}
+.warn{border-left-color:var(--warn)}.ok{border-left-color:var(--ok)}
+ol li,ul li{margin:4px 0}
+</style></head><body><main>
+<h1>Cellebrite Touch: SOURCE/TARGET seri yuvalarını Linux'ta açmak</h1>
+<p class="lead">Cellebrite Touch (Intel US15W). 6 Kasım 2026: <b>NB13</b> (BIOS 6.04, antiX 26.1) ve <b>NB12</b> (Tiny Core) donanımlarında denenip doğrulandı. Busybox ile çalışır.</p>
+
+<h2>Sorunun nedeni</h2>
+<p>İki UART (ttyS0 ve ttyS1) Linux'ta düzgün tanınıyor, veri gönderirken kesme de üretiyor. Ama sinyal RJ45 yuvalarına ulaşmıyor. Çünkü UART ile yuvalar arasında Cellebrite'ın kendi <b>CPLD</b> yongası var (ACPI adı <code>\_SB.PCI0.LPCB.CPLD</code>, HID <code>PNPB029</code>, I/O <code>0x290–0x29F</code>). Yuvaları seri porta bu yonga bağlıyor. Windows'ta bu işi Cellebrite yazılımı yapıyordu, Linux'ta kimse yapmadığı için yuvalar boş kalıyor.</p>
+
+<h2>Anahtar: 0x293 yazmacı</h2>
+<table><tr><th>Bitler</th><th>Sonuç</th></tr>
+<tr><td>bit2 = 1, bit1 = 0</td><td><b>ttyS1 → SOURCE</b> (sol yuva)</td></tr>
+<tr><td>bit4 = 1, bit3 = 0</td><td><b>ttyS0 → TARGET</b> (sağ yuva)</td></tr></table>
+<p>Fabrika değeri <code>0x02</code>, ikisini birden açan değer <code>0x14</code>. Yazmaya izin vermesi için önce kilidin açılması gerekiyor: <code>0x29E ← 0x5A</code>, <code>0x29F ← 0xA5</code>. Yazdıktan sonra ikisine <code>0x00</code> yazılarak yeniden kilitleniyor.</p>
+<p>Bulma yöntemi: döngü kablosu takılıyken önce yazmaçlardaki bitleri tek tek değiştirip test ettik, sonra 0x293'ün 256 değerinin hepsini denedik. SOURCE yuvası iki bitin birlikte değişmesini istediği için tek bit taramasında çıkmamıştı.</p>
+
+<h2>1. Önce mevcut değeri oku</h2>
+<div class="blk"><pre>sudo dd if=/dev/port bs=1 skip=656 count=16 2>/dev/null | od -An -tx1</pre></div>
+<p>Bizde çıkan değer: <code>c9 36 1f 02 ef 01 00 78 0a 40 fe 50 37 04 01 00</code>. Dördüncü bayt (0x293) <code>02</code> olmalı. Sizde farklı bir şey çıkarsa yazmadan önce bize haber verin.</p>
+
+<h2>2. Betiği kur</h2>
+<p>Aşağıdakini kopyalayıp <b>root</b> terminaline (<code>sudo su</code>) yapıştırın. <code>/opt/cpld_seri.sh</code> dosyasını oluşturur:</p>
+<div class="blk"><button class="cp">Kopyala</button><pre>cat &gt; /opt/cpld_seri.sh &lt;&lt;&#x27;EOF&#x27;
+#!/bin/sh
+# Cellebrite Touch (UFED Touch NB13): SOURCE/TARGET RJ45 seri yuvalarini ac/kapa.
+# CPLD yazmaci IO 0x293:  bit2=1,bit1=0 -&gt; ttyS1 SOURCE (sol)  |  bit4=1,bit3=0 -&gt; ttyS0 TARGET (sag)
+# Kilit: 0x29E=0x5A, 0x29F=0xA5 yaz -&gt; degistir -&gt; ikisine 0x00 yaz.
+# Kullanim (root):  cpld_seri.sh ac | kapa | durum
+PORT=${PORT:-/dev/port}
+ADR=659     # 0x293
+LOK1=670    # 0x29E
+LOK2=671    # 0x29F
+oku()  { dd if=&quot;$PORT&quot; bs=1 skip=&quot;$1&quot; count=1 2&gt;/dev/null | od -An -tu1 | tr -d &#x27; \n&#x27;; }
+yaz()  { printf &quot;\\$(printf &#x27;%03o&#x27; &quot;$2&quot;)&quot; | dd of=&quot;$PORT&quot; bs=1 seek=&quot;$1&quot; count=1 conv=notrunc 2&gt;/dev/null; }
+v=$(oku $ADR)
+case &quot;${1:-durum}&quot; in
+  ac)   yeni=$(( (v &amp; ~30) | 20 )) ;;   # 30=0x1E, 20=0x14
+  kapa) yeni=$(( (v &amp; ~30) | 2 ))  ;;   # fabrika degeri 0x02
+  durum) yeni= ;;
+  *) echo &quot;kullanim: $0 ac|kapa|durum&quot;; exit 1 ;;
+esac
+if [ -n &quot;$yeni&quot; ]; then
+  yaz $LOK1 90; yaz $LOK2 165      # kilit ac (0x5A, 0xA5)
+  yaz $ADR $yeni
+  yaz $LOK1 0;  yaz $LOK2 0        # kilitle
+  v=$(oku $ADR)
+fi
+src=KAPALI; [ $(( v &amp; 6 )) -eq 4 ] &amp;&amp; src=ACIK
+tgt=KAPALI; [ $(( v &amp; 24 )) -eq 16 ] &amp;&amp; tgt=ACIK
+printf &#x27;0x293 = %02x   ttyS1-&gt;SOURCE: %s   ttyS0-&gt;TARGET: %s\n&#x27; &quot;$v&quot; &quot;$src&quot; &quot;$tgt&quot;
+EOF
+chmod +x /opt/cpld_seri.sh</pre></div>
+
+<h2>3. Kullanım</h2>
+<div class="blk"><button class="cp">Kopyala</button><pre>sudo sh /opt/cpld_seri.sh ac      # iki yuvayı aç (0x293 = 14)
+sudo sh /opt/cpld_seri.sh durum   # durumu göster
+sudo sh /opt/cpld_seri.sh kapa    # fabrika değerine dön (0x293 = 02)</pre></div>
+<p>Beklenen çıktı: <code>0x293 = 14   ttyS1-&gt;SOURCE: ACIK   ttyS0-&gt;TARGET: ACIK</code></p>
+
+<h2>4. Açılışta otomatik açılsın (Tiny Core)</h2>
+<p>Ayar yeniden başlatınca sıfırlanır. Tiny Core'da açılışta çalışması ve kalıcı olması için:</p>
+<div class="blk"><button class="cp">Kopyala</button><pre>echo "sh /opt/cpld_seri.sh ac" | sudo tee -a /opt/bootlocal.sh
+sudo filetool.sh -b</pre></div>
+<p class="note"><code>/opt</code> klasörünün yedeğe dahil olduğundan emin olun (<code>/opt/.filetool.lst</code> içinde <code>opt</code> satırı olmalı, varsayılan olarak vardır).</p>
+
+<h2>5. Döngü testi</h2>
+<p>Standart renkli ağ kablosunda (T568B) <b>mavi (pin 4)</b> ile <b>beyaz-mavi (pin 5)</b> telleri birbirine bükün, diğer telleri yalıtın. Kabloyu yuvaya takın:</p>
+<div class="blk"><button class="cp">Kopyala</button><pre>P=/dev/ttyS0          # TARGET için ttyS0, SOURCE için ttyS1
+stty -F $P 9600 raw -echo
+cat $P &amp; sleep 1; echo MERHABA-DONGU &gt; $P; sleep 1; kill $!</pre></div>
+<p>Ekranda <code>MERHABA-DONGU</code> görünürse yuva çalışıyor demektir. Bizde iki yuvada da yeniden başlatmadan sonra testi defalarca tekrarladık, hepsinde veri geri geldi.</p>
+<p class="note warn">Önce ttyS0'da bir getty (giriş ekranı) çalışmadığından emin olun: <code>ps | grep getty</code> ve <code>/etc/inittab</code>. Bizde antiX ttyS0'da getty çalıştırıyordu ve portu meşgul ediyordu.</p>
+
+<h2>6. Pinler ve sinyal seviyesi</h2>
+<table><tr><th>Tel (T568B)</th><th>Pin</th><th>Görevi</th></tr>
+<tr><td>Beyaz-mavi</td><td>5</td><td><b>TX</b> (cihaz gönderir)</td></tr>
+<tr><td>Mavi</td><td>4</td><td><b>RX</b> (cihaz alır)</td></tr></table>
+<p>Ölçümü TARGET yuvasında, multimetrenin siyah ucu şasiye (USB soketinin metali) değerken yaptık. Boşta iki hat da yaklaşık <b>+2.5 V</b> gösterdi. Sürekli 0x00 gönderilince TX hattı mV seviyesine düştü. Yani sinyal <b>TTL seviyesinde (~3.3 V), RS-232 değil.</b></p>
+<p class="note warn"><b>Dikkat:</b> RS-232 kullanan bir cihazı (telsiz, GPS vb.) doğrudan bağlamayın, ±12 V girişe zarar verebilir. Araya 3.3 V ile beslenen bir <b>MAX3232</b> dönüştürücü koyun. RJ45 içindeki GND ve besleme pinleri henüz belirlenmedi. Ölçüm için GND olarak şasiyi kullandık.</p>
+
+<h2>Uyarılar</h2>
+<ul>
+<li>CPLD'de <b>sadece 0x293</b> yazmacını değiştirin. Diğer yazmaçlar (0x292, 0x298, 0x29B vb.) dokunmatik ekranın sıfırlanması, WiFi ve güç kaynağı gibi işlerle ilgili.</li>
+<li>Yazmacın sadece 1–4. bitlerine dokunun. Betik diğer bitleri olduğu gibi bırakıyor.</li>
+<li>Bir şey ters giderse cihazı kapatıp açın: CPLD fabrika ayarına döner.</li>
+</ul>
+</main>
+<script>
+document.querySelectorAll('button.cp').forEach(b=>b.addEventListener('click',async()=>{
+ const t=b.nextElementSibling.innerText;
+ try{await navigator.clipboard.writeText(t);b.textContent='Kopyalandı';}catch(e){b.textContent='Elle seçip kopyalayın';}
+ setTimeout(()=>b.textContent='Kopyala',2000);
+}));
+</script>
+</body></html>
