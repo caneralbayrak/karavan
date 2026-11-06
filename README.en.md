@@ -42,4 +42,4 @@ NEO-M8N GPS, relay board, 12 V 200 Ah LiFePO4 battery (Bluetooth BMS).
 3. Install an MQTT broker (Mosquitto with websocket port 9001 open); point the panel at it with `?broker=ADDRESS`.
 
 The code, comments and user interface are in Turkish.
-Voice prompts were generated with [Piper](https://github.com/rhasspy/piper) using the `tr_TR-dfki-medium` voice.
+Voice prompts were generated with [Chatterbox Multilingual](https://github.com/resemble-ai/chatterbox) (ResembleAI, MIT). A Turkish female speaker recording from [Google FLEURS](https://huggingface.co/datasets/google/fleurs) (CC-BY 4.0) was used as the voice reference. Generation scripts: `tasarim/ses_uretim/`.

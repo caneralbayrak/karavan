@@ -261,7 +261,7 @@ setInterval(function(){
  }
  duzSay=0;
  if(!hedef||hedef.k!==t.k||hedef.is!==t.is){
-  soyle((hedef?['tamam']:[]).concat([t.k+'_'+t.is,cmSes(t.cm)]),!!hedef);
+  soyle((hedef?['tamam']:[]).concat([t.k+'_'+t.is+cmSes(t.cm).slice(2)]),!!hedef);
   hedef=t;sonSes=simdi;
  }else if(simdi-sonSes>8000&&!konusuyor()){
   soyle([cmSes(t.cm)]);sonSes=simdi;

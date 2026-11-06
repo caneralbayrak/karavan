@@ -48,7 +48,9 @@ Ayrı terminalde `ssh karavan@192.168.1.117` ile bağlanıp sırayla:
 - [ ] **Seri yuva GND'sini doğrula:** mini PC KAPALIYKEN multimetre bip ayarında beyaz-yeşil ve kahverengi teller şasiyle (USB soketinin metali) bip veriyor mu
 - [x] Çift DHCP düzeltildi (2026-11-06): dhcpcd kapatıldı, mini PC evde sabit .117; yeniden başlatma testi geçti
 - [ ] Karavana taşınırken: karavan modeminde mini PC'ye sabit IP (ya da connman'da elle), ESP'nin broker adresini yeni ağa göre ayarla
-- [ ] (İsteğe bağlı) Dahili hoparlörler: yazılımla açılamadı; kasa bir gün açılırsa hoparlör kablosu kartta takılı mı bak. Şimdilik kulaklık çıkışı + harici amfi
+- [x] Dahili hoparlörler çalıştı (2026-11-06): amfi EAPD sinyaliyle açılıyor, sürücü yamasıyla kalıcı. Ayrıntı: mini_pc/BENIOKU.md
+- [x] Kulaklık + hoparlör otomatik geçiş (2026-11-06): jak takılınca ses jaktan (harici amfi), çıkınca dahili hoparlörden — PipeWire jak algılamasıyla kendiliğinden yapıyor, ayar gerekmedi
+- [x] Ön tuşlar (2026-11-06): yön+OK klavye tuşu; L/R = dahili PS/2 fare (GRUB i8042.nomux=1), kiosk.sh'de 8/9'a taşındı (tıklama yapmıyor). Panelde görev verilecek
 
 ### Sonra
 - [ ] ESP'ye yeni yazılımı yükle (Claude yapabilir)
@@ -60,6 +62,7 @@ Ayrı terminalde `ssh karavan@192.168.1.117` ile bağlanıp sırayla:
 - [ ] **Dizel ısıtıcı (Sensation, Çin malı; 433 MHz kumandası var, dijital paneli var):** (1) panel kablosundaki mavi veri telini ESP32 ile sadece dinle → durum/sıcaklık/hata kodu (github.com/timmchugh11/Chinese-Diesel-Heater---ESPHome); (2) açma/kapamayı CC1101 ile kumandayı taklit ederek yap (github.com/jakkik/DieselHeaterRF). Önce: panelin, kablonun ve fişin fotoğrafı; tel renklerini multimetreyle ölç. Panel sökülebiliyor: eve getirip içini açıp PCB üzerindeki pin yazılarına (5V/GND/TX/RX vb.) bakabiliriz (kullanıcının fikri). **Termostat:** bu modelin panelinde termostat yok (satıcı "panel değişirse olur" dedi); ESP kendi termostatını yapsın: BME280 iç sıcaklığına göre ısıtıcının gücünü kumandayla artır/azalt, sık aç-kapa yapma (buji ve karbonlanma). Uzaktan çalıştırmadan önce MQ-7 CO sensörü kurulsun.
 - [ ] Proje bitince: prototip karavanda oturunca KiCad ile şema + PCB çiz, dosyaları (Gerber dahil) GitHub'a koy; başkaları kendi yaptırabilsin (kullanıcının fikri 2026-11-05)
 - [ ] Yerel panel yeni görünüm (2026-11-06): Genel sekmesi bitti, kullanıcı beğendi. Sırada Akü, Su ve Seviye sekmelerinin tasarımı; sonra web paneli (panel/index.html) aynı tarza
+- [x] Sesli uyarılar yenilendi (2026-11-06/07): Chatterbox + FLEURS kadın sesi, 218 dosya; ayak+santim tek cümle (sol_arka_indir_7), ses seviyesi eşit, hışırtı temizlendi. Üretim: tasarim/ses_uretim/
 - [ ] Proje bitince: panellere dil seçeneği (Türkçe/İngilizce); sesli uyarılar için İngilizce Piper sesiyle ses dosyaları da üretilecek
 
 ## Alışveriş listesi

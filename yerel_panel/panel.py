@@ -1039,7 +1039,7 @@ class Panel:
         self.duz_say = 0
         h = self.hedef
         if not h or h['k'] != t['k'] or h['is'] != t['is']:
-            self.ses.soyle((['tamam'] if h else []) + [t['k'] + '_' + t['is'], self.cm_ses(t['cm'])], bool(h))
+            self.ses.soyle((['tamam'] if h else []) + [t['k'] + '_' + t['is'] + self.cm_ses(t['cm'])[2:]], bool(h))   # tek cümle: sol_arka_indir_5
             self.hedef, self.son_ses = t, simdi
         elif simdi - self.son_ses > 8 and not self.ses.konusuyor():
             self.ses.soyle([self.cm_ses(t['cm'])])

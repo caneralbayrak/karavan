@@ -15,8 +15,17 @@ SONUC:
    RS-232 cihaz (telsiz vb.) icin araya MAX3232 (3.3 V) koyun.
    5 V'luk klasik MAX232 kullanirsaniz R1OUT -> mavi hattina 10k/20k bolucu koyun.
 
+ON TUSLAR (yon tuslari, OK, L, R):
+   Yon tuslari + OK: ek ayar gerekmez, normal klavye ok tuslari ve Enter olarak gelir.
+   L ve R: dahili bir PS/2 farenin sol/sag tusu. Gorunmesi icin acilis ayari gerekir:
+      sudo sh tuslar.sh      -> acilis satirina i8042.nomux=1 ekler (once onay ister, yedek alir)
+      cihazi yeniden baslatin
+      sudo sh tuslar.sh      -> "BASARILI: dahili PS/2 fare bulundu" demeli
+   L/R tiklama yapmasin isterseniz:  xinput set-button-map "PS/2 Generic Mouse" 8 2 9
+
 DOSYALAR:
    kur.sh         tek komut kurulum (busybox ile calisir, Python gerekmez)
+   tuslar.sh      L/R tuslarini acar (acilis ayari ekler)
    cpld_seri.sh   ac / kapa / durum   (sudo sh /opt/cpld_seri.sh ac)
    cpld_seri.py   ayni isin Python surumu (sudo python3 cpld_seri.py ac)
    dongu.py       Python dongu testi  (python3 dongu.py /dev/ttyS0)

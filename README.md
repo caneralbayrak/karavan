@@ -41,4 +41,4 @@ NEO-M8N GPS, röle kartı, 12 V 200 Ah LiFePO4 akü (Bluetooth BMS).
 2. ESPHome ile derleyip yükleyin: `esphome run sensor-dugumu.yaml`
 3. MQTT broker (Mosquitto, websocket portu 9001 açık) kurun; panelde broker adresini `?broker=ADRES` ile verin.
 
-Sesler [Piper](https://github.com/rhasspy/piper) `tr_TR-dfki-medium` sesiyle üretildi.
+Sesler [Chatterbox Multilingual](https://github.com/resemble-ai/chatterbox) (ResembleAI, MIT) ile üretildi. Ses rengi için referans olarak [Google FLEURS](https://huggingface.co/datasets/google/fleurs) veri setinden (CC-BY 4.0) bir Türkçe kadın konuşmacı kaydı kullanıldı. Üretim betikleri: `tasarim/ses_uretim/`.

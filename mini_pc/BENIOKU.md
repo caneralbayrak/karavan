@@ -51,7 +51,7 @@ Döngü testi: mavi + beyaz-mavi bükülü → `python3 ~/dongu.py /dev/ttyS0`.
 | ttyS0 giriş ekranı (getty) kaldırıldı: `/etc/service/getty-ttyS0` silindi (geri: `sudo ln -s /etc/sv/getty-ttyS0 /etc/service/`) | – |
 | Yuva açma aracı `/usr/local/sbin/cpld_seri ac\|kapa\|durum` | sistem/cpld_seri.py |
 | Açılışta yuvaları aç: `/etc/runit/rc-local/cpld-seri.start` | sistem/cpld-seri.start |
-| WiFi sürücü güç tasarrufu kapalı: `/etc/modprobe.d/rtl8723ae.conf` | sistem/rtl8723ae.conf |
+| WiFi sürücü güç tasarrufu kapalı: `/etc/modprobe.d/rtl8723ae.conf` → `ips=0 swlps=0 fwlps=0` (**aspm=0 KOYMA**: açılışta PCIe köprüsünde saniyede ~68 bin kesmelik fırtına yaptı, işlemci %97 meşguldü; 2026-11-06 düzeltildi, şimdi ~12 kesme/sn, %92 boşta) | sistem/rtl8723ae.conf |
 | WiFi bekçisi `/usr/local/sbin/wifi-bekci` + servis `/etc/sv/wifi-bekci/run` (kayıt `/var/log/wifi-bekci.log`) | sistem/wifi-bekci, sistem/wifi-bekci.run |
 
 WiFi bekçisi 30 sn'de bir modemi yoklar; bağlantı yoksa: 2./4. hata `connmanctl connect`, 6./12. hata
@@ -62,11 +62,19 @@ geri: `sudo ln -s /etc/sv/dhcpcd /etc/service/`), connman "caner" ağında sabit
 DNS: /etc/resolv.conf yok (dhcpcd yazıyordu); glibc varsayılanı 127.0.0.1 = connman DNS vekili, çalışıyor.
 İstenirse: `sudo ln -s /run/connman/resolv.conf /etc/resolv.conf`. connman kayıt saatleri UTC (+3 ekle).
 
-### Dahili hoparlörler (çözülmedi)
-Üstte iki hoparlör var ama ses yok; kulaklık çıkışı çalışıyor. Denenip sonuç vermeyenler (denemeler/ klasörü):
-codec ALC262 hoparlör pini 0x14 (açık, %100), codec GPIO0-3, kullanılmayan pinler 0x16/0x19/0x1a/0x1b,
-CPLD'de 63 bit (reset/WiFi/güç bitleri hariç), işlemci GPIO çıkışları 4/5/11. Denenmeyen: işlemci GPIO
-girişleri (çatışma riski), kasa içi kablo kontrolü.
+### Ön tuşlar
+Yön tuşları + OK normal klavye tuşu (X keycode: 111 yukarı, 116 aşağı, 113 sol, 114 sağ, 36 Enter). **L ve R tuşları = dahili PS/2 farenin sol (button 1) ve sağ (button 3) tuşu.** Varsayılan i8042 aktif-MUX kipinde fare bulunamıyordu; 2026-11-06'da GRUB'a `i8042.nomux=1` eklendi (`/etc/default/grub`, yedek `/etc/default/grub.yedek-2026-11-06`, sonra `sudo update-grub`). Şimdi "PS/2 Generic Mouse" (xinput id 10) olarak görünüyor.
+DİKKAT: L/R, imlecin son dokunulan yerinde sol/sağ tıklama yapar. Panelde ayrı iş için kullanılacaksa `xinput set-button-map "PS/2 Generic Mouse" 8 2 9` ile 8/9 numaralı tuşlara taşınıp Tk'de `<Button-8>`/`<Button-9>` olarak yakalanabilir. Henüz bir işe atanmadı.
+
+### Dahili hoparlörler (ÇÖZÜLDÜ 2026-11-06)
+Sebep: ses yongası ALC262'nin hoparlör pini (0x14) EAPD (dış amfiyi açma sinyali) özelliğini bildirmiyor; Linux sürücüsü
+bu yüzden EAPD'ye hiç dokunmuyor, amfi kapalı kalıyor (EAPD=0). Windows sürücüsü açıyordu.
+Elle açma: `sudo hda-verb /dev/snd/hwC0D0 0x14 0x70c 0x02` (0x15'te de aynı etki).
+Kalıcı: sürücü yaması `/lib/firmware/karavan-hoparlor.fw` (sistem/karavan-hoparlor.fw) +
+`/etc/modprobe.d/karavan-ses.conf` → `options snd-hda-intel patch=karavan-hoparlor.fw` (sistem/karavan-ses.conf).
+Kontrol: `cat /sys/class/sound/hwC0D0/init_verbs` → `0x14 0x70c 0x0002`. power_save=0 olduğu için kart uyuyup sıfırlamıyor.
+Denenip işe yaramayanlar (denemeler/): codec GPIO (16 birleşim), VREF, kullanılmayan pinler, CPLD bitleri, SCH GPIO çıkışları.
+Otomatik geçiş: jak algılaması çalışıyor ('Headphone Mic Jack'); PipeWire jak takılınca Speaker'ı kapatıp Headphone'u açıyor, çıkınca tersini yapıyor (2026-11-06 doğrulandı, ayar gerekmedi).
 
 ### Arkadaş paketi
 `arkadas_paketi/` + `cellebrite_seri_paketi.zip`: tek komutla kurulum (`sudo sh kur.sh`, busybox),

@@ -5,6 +5,9 @@
 ADRES="file://$HOME/karavan/panel/index.html?broker=localhost"
 # Dokunmatik kalibrasyonu (2026-10-31, kalibrasyon.html ile ölçüldü)
 xinput set-prop "DIALOGUE INC PenMount USB" "libinput Calibration Matrix" 1.03393 0 -0.02019 0 1.07413 -0.03203 0 0 1 2>/dev/null
+# L/R ön tuşları (dahili PS/2 fare, i8042.nomux=1 ile görünür) tıklama yapmasın: sol(1)->8, sağ(3)->9
+# Panel isterse <Button-8> / <Button-9> olarak yakalayabilir. (2026-11-06)
+xinput set-button-map "PS/2 Generic Mouse" 8 2 9 2>/dev/null
 # Dokunmatik ekranda fare imleci görünmesin
 command -v unclutter >/dev/null && unclutter -idle 3 -root &
 while true; do

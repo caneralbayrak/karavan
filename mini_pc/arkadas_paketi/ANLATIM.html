@@ -93,6 +93,15 @@ cat $P &amp; sleep 1; echo MERHABA-DONGU &gt; $P; sleep 1; kill $!</pre></div>
 <p>Ölçümü TARGET yuvasında, multimetrenin siyah ucu şasiye (USB soketinin metali) değerken yaptık. Boşta iki hat da yaklaşık <b>+2.5 V</b> gösterdi. Sürekli 0x00 gönderilince TX hattı mV seviyesine düştü. Yani sinyal <b>TTL seviyesinde (~3.3 V), RS-232 değil.</b></p>
 <p class="note warn"><b>Dikkat:</b> RS-232 kullanan bir cihazı (telsiz, GPS vb.) doğrudan bağlamayın, ±12 V girişe zarar verebilir. Araya 3.3 V ile beslenen bir <b>MAX3232</b> dönüştürücü koyun. RJ45 içindeki GND ve besleme pinleri henüz belirlenmedi. Ölçüm için GND olarak şasiyi kullandık.</p>
 
+<h2>7. Ön tuşlar: yön tuşları, OK, L ve R</h2>
+<p><b>Yön tuşları ve OK</b> ek ayar gerektirmez. Linux bunları normal klavyenin ok tuşları ve Enter olarak görür (X tuş kodları: 111 yukarı, 116 aşağı, 113 sol, 114 sağ, 36 Enter).</p>
+<p><b>L ve R</b>, cihazın içindeki bir <b>PS/2 farenin sol ve sağ tuşu</b>. Çekirdek PS/2 denetleyicisini "aktif MUX" modunda çalıştırdığı için bu fare varsayılan ayarda bulunamıyor, tuşlar da hiçbir yerde görünmüyor. Açılış satırına <code>i8042.nomux=1</code> eklenince fare <code>PS/2 Generic Mouse</code> olarak görünüyor: L = button 1, R = button 3.</p>
+<p>Paketteki <code>tuslar.sh</code> bu ayarı kendisi ekler. Tiny Core'un extlinux'unu, eski GRUB'u (menu.lst) ve Debian/antiX GRUB'unu tanır, önce yedek alır ve onay ister:</p>
+<div class="blk"><button class="cp">Kopyala</button><pre>sudo sh tuslar.sh     # ayarı ekler
+# cihazı yeniden başlatın
+sudo sh tuslar.sh     # kontrol: "BASARILI: dahili PS/2 fare bulundu"</pre></div>
+<p class="note">L ve R imlecin son dokunulan yerinde tıklama yapar. Tıklama yapmasın, programlar ayrı tuş olarak yakalasın isterseniz grafik oturumun açılışına şu satırı ekleyin (L = tuş 8, R = tuş 9 olur):<br><code>xinput set-button-map "PS/2 Generic Mouse" 8 2 9</code></p>
+
 <h2>Uyarılar</h2>
 <ul>
 <li>CPLD'de <b>sadece 0x293</b> yazmacını değiştirin. Diğer yazmaçlar (0x292, 0x298, 0x29B vb.) dokunmatik ekranın sıfırlanması, WiFi ve güç kaynağı gibi işlerle ilgili.</li>
