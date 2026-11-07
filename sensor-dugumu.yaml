@@ -2,6 +2,8 @@ substitutions:
   ntfy_konu: !secret ntfy_konu
   kayma_esigi: "0.7"   # derece; konaklamada bu kadar değişirse uyarı
   su_kal_sayi: "8"     # su kalibrasyonunda ortalaması alınan son ölçüm sayısı
+  salinim_tepe: "4"    # savrulma için art arda kaç zıt yönlü tepe (4 = iki tam salınım)
+  salinim_hiz: "40"    # km/s; bu hızın altında savrulma bakılmaz
 
 esphome:
   name: sensor-dugumu
@@ -28,6 +30,8 @@ logger:
 
 # Enable Home Assistant API
 api:
+  # Home Assistant yok; istemci bağlanmıyor diye 15 dk'da bir yeniden başlamasın
+  reboot_timeout: 0s
   encryption:
     key: !secret api_anahtari
 
@@ -43,6 +47,13 @@ wifi:
       password: !secret wifi1_sifre
     - ssid: !secret wifi2_ad
       password: !secret wifi2_sifre
+    # Telefon hotspot'u: yolda savrulma / durma bildirimleri bunun interneti üzerinden gider
+    - ssid: !secret wifi3_ad
+      password: !secret wifi3_sifre
+      priority: -1
+    - ssid: !secret wifi3b_ad
+      password: !secret wifi3_sifre
+      priority: -1
 
   # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
@@ -52,7 +63,10 @@ wifi:
 captive_portal:
 
 mqtt:
+  id: mqtt_client
   broker: 192.168.1.117
+  # Yolda mini PC'ye ulaşılamaz; savrulma/ntfy işleri sürsün, yeniden başlamasın
+  reboot_timeout: 0s
 
 http_request:
   verify_ssl: true
@@ -87,6 +101,7 @@ gps:
     accuracy_decimals: 0
   speed:
     name: "GPS Hiz"
+    id: gps_hiz
     accuracy_decimals: 0
   satellites:
     name: "GPS Uydu"
@@ -113,6 +128,27 @@ daly_bms_ble:
     response_timeout: 3s
 
 globals:
+  # --- Taşıma modu ---
+  - id: salinim_son        # son savrulma uyarısının zamanı (ms)
+    type: uint32_t
+    initial_value: '0'
+  - id: hareket_sn         # GPS hızı art arda kaç sn >15 km/s
+    type: int
+    initial_value: '0'
+  - id: dur_sn             # GPS hızı art arda kaç sn <3 km/s
+    type: int
+    initial_value: '0'
+  - id: durdu_soruldu      # bu duruşta "vardık mı, mola mı" soruldu mu
+    type: bool
+    initial_value: 'false'
+  # Hareketin başladığı nokta: GPS hız titremesi (evde 13 km/s görüldü) yanlış tetiklemesin diye
+  # hız + gerçek yer değiştirme birlikte aranır
+  - id: hareket_enlem
+    type: float
+    initial_value: 'NAN'
+  - id: hareket_boylam
+    type: float
+    initial_value: 'NAN'
   # "Düz kabul et" ile kaydedilen sensör sıfır noktası
   - id: ofs_x
     type: float
@@ -175,6 +211,17 @@ globals:
     initial_value: '0'
 
 number:
+  # Savrulma: dönme hızı salınımı bu kadar °/s'yi geçerse tepe sayılır (yolda ayarlanacak)
+  - platform: template
+    name: "Salinim Esik"
+    id: salinim_esik
+    unit_of_measurement: "°/s"
+    min_value: 1
+    max_value: 30
+    step: 0.5
+    initial_value: 4
+    optimistic: true
+    restore_value: true
   # Alarm kuruluyken karavan bu kadar metre yer değiştirirse bildirim (test için düşürülebilir)
   - platform: template
     name: "GPS Alarm Esik"
@@ -244,12 +291,30 @@ button:
       - component.update: su_kalan
 
 switch:
+  # Taşıma modu: yolda. Konaklamayı (ve pompayı) kapatır; GPS hırsızlık kontrolü bu modda yapılmaz
+  - platform: template
+    name: "Tasima"
+    id: tasima
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    turn_on_action:
+      - switch.turn_off: konaklama
+      - lambda: 'id(durdu_soruldu) = false;'
+    turn_off_action:
+      - switch.turn_off: mola
+  # Mola: taşıma modunda duruldu, karavan başında kimse yok → alarm kurulu; yola çıkınca kendiliğinden biter
+  - platform: template
+    name: "Mola"
+    id: mola
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
   - platform: template
     name: "Konaklama"
     id: konaklama
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
     turn_on_action:
+      - switch.turn_off: tasima
       - switch.turn_on: su_pompasi
       # Açılışta durum geri yüklenirken kayıtlı konumu ezme
       - lambda: |-
@@ -317,6 +382,56 @@ text_sensor:
       name: "Aku Hatalar"
 
 script:
+  - id: salinim_uyar
+    mode: single
+    then:
+      - mqtt.publish:
+          topic: karavan/olay
+          payload: salinim
+      - http_request.post:
+          url: https://ntfy.sh/${ntfy_konu}
+          request_headers:
+            Title: "KARAVAN SAVRULUYOR!"
+            Priority: "max"
+            Tags: "warning,rotating_light"
+          body: "Gazı yavaşça bırak, sert fren yapma, direksiyonu düz tut."
+
+  # Duruldu: "vardık mı, mola mı?" — telefondan bildirimdeki düğmeyle de yanıtlanır
+  - id: durdu_sor
+    mode: single
+    then:
+      - mqtt.publish:
+          topic: karavan/olay
+          payload: durdu
+      - http_request.post:
+          url: https://ntfy.sh/${ntfy_konu}
+          request_headers:
+            Title: "Durdunuz: vardiniz mi, mola mi?"
+            Tags: "stop_sign"
+            Actions: "http, Vardik, https://ntfy.sh/${ntfy_konu}-komut, body=vardik, clear=true; http, Mola, https://ntfy.sh/${ntfy_konu}-komut, body=mola, clear=true"
+          body: "Yanıtlamak için düğmelerden birine dokun (ya da karavandaki panelden seç)."
+
+  - id: mola_basla
+    mode: single
+    then:
+      - switch.turn_on: mola
+      - mqtt.publish:
+          topic: karavan/olay
+          payload: mola
+      - mqtt.publish:
+          topic: karavan/alarm
+          payload: kurulu
+          retain: true
+
+  - id: vardik
+    mode: single
+    then:
+      - switch.turn_off: tasima
+      - switch.turn_on: konaklama
+      - mqtt.publish:
+          topic: karavan/olay
+          payload: vardik
+
   - id: gps_ntfy
     mode: single
     then:
@@ -449,6 +564,7 @@ sensor:
       Egim e = karavan_egim(ham_egim(ax, ay, az) - id(ofs_x), ham_egim(ay, ax, az) - id(ofs_y),
                             id(sensor_yonu).active_index().value_or(0));
       return e.yan;
+  # 20 Hz okunur: jiroskop savrulma için; ivmeler ortalanıp saniyede bir yayınlanır (eğim)
   - platform: mpu6050
     address: 0x68
     accel_x:
@@ -456,23 +572,47 @@ sensor:
       id: ivme_x
       filters:
         - exponential_moving_average:
-            alpha: 0.3
-            send_every: 1
+            alpha: 0.02
+            send_every: 20
     accel_y:
       name: "Ivme Y"
       id: ivme_y
       filters:
         - exponential_moving_average:
-            alpha: 0.3
-            send_every: 1
+            alpha: 0.02
+            send_every: 20
     accel_z:
       name: "Ivme Z"
       id: ivme_z
       filters:
         - exponential_moving_average:
-            alpha: 0.3
-            send_every: 1
-    update_interval: 1s
+            alpha: 0.02
+            send_every: 20
+    # Dikey eksende dönme hızı (kart yatay monte): savrulma
+    gyro_z:
+      id: donme_z
+      internal: true
+      on_value:
+        - lambda: |-
+            float hiz = id(gps_hiz).state;
+            bool hizli = gps_iyi(id(gps_uydu).state, id(gps_hdop).state, id(gps_enlem).state) && hiz >= ${salinim_hiz};
+            if (salinim_ornek(salinim_durum(), x, esphome::millis(), id(salinim_esik).state, ${salinim_tepe}) && hizli &&
+                esphome::millis() - id(salinim_son) > 30000) {
+              id(salinim_son) = esphome::millis();
+              ESP_LOGW("salinim", "SAVRULMA algılandı (%.0f km/s)", hiz);
+              id(salinim_uyar).execute();
+            }
+    update_interval: 50ms
+  # Kalibrasyon için: son 1 dk'daki en büyük dönme salınımı (°/s); yolda eşiği ayarlamaya yarar
+  - platform: template
+    name: "Salinim Max"
+    unit_of_measurement: "°/s"
+    accuracy_decimals: 1
+    update_interval: 60s
+    lambda: |-
+      float m = salinim_durum().pencere_max;
+      salinim_durum().pencere_max = 0;
+      return m;
   - platform: bme280_i2c
     address: 0x77
     temperature:
@@ -567,11 +707,66 @@ binary_sensor:
       name: "Aku Dengeleme"
 
 interval:
+  # Taşıma modu: hareket / duruş takibi (GPS 10 sn'de bir)
+  - interval: 10s
+    then:
+      - lambda: |-
+          if (!gps_iyi(id(gps_uydu).state, id(gps_hdop).state, id(gps_enlem).state)) return;
+          float hiz = id(gps_hiz).state;
+          float en = id(gps_enlem).state, boy = id(gps_boylam).state;
+          if (hiz > 15) {
+            if (id(hareket_sn) == 0) { id(hareket_enlem) = en; id(hareket_boylam) = boy; }
+            id(hareket_sn) += 10;
+          } else {
+            id(hareket_sn) = 0;
+          }
+          id(dur_sn) = hiz < 3 ? id(dur_sn) + 10 : 0;
+          // Hareket başladığından beri gerçekten ne kadar yol alındı (m)
+          float yol = id(hareket_sn) ? mesafe_m(id(hareket_enlem), id(hareket_boylam), en, boy) : 0;
+          auto a = id(alarm_durum).state;
+          bool alarm = (a == "kurulu" || a == "caliyor");
+          // Taşıma modu açılmadan yola çıkıldı: kendiliğinden aç (alarm kuruluysa bu hırsızlık, ona dokunma)
+          if (!id(tasima).state && !alarm && id(hareket_sn) >= 60 && yol > 300) {
+            id(tasima).turn_on();
+            id(mqtt_client).publish("karavan/olay", "tasima_oto");
+            ESP_LOGI("tasima", "Hareket algılandı, taşıma modu açıldı");
+          }
+          if (!id(tasima).state) return;
+          if (id(hareket_sn) >= 20 && yol > 150) {
+            id(durdu_soruldu) = false;
+            // Moladan sonra yola çıkıldı: alarmı kapat
+            if (id(mola).state) {
+              id(mola).turn_off();
+              id(mqtt_client).publish("karavan/alarm", "kapali", 0, true);
+              id(mqtt_client).publish("karavan/olay", "mola_bitti");
+            }
+          }
+          if (!id(mola).state && !id(durdu_soruldu) && id(dur_sn) >= 300) {
+            id(durdu_soruldu) = true;
+            id(durdu_sor).execute();
+          }
+  # Duruşta telefondaki "Vardik / Mola" düğmesinin yanıtını oku
+  - interval: 15s
+    then:
+      - if:
+          condition:
+            lambda: 'return id(tasima).state && id(durdu_soruldu) && !id(mola).state;'
+          then:
+            - http_request.get:
+                url: https://ntfy.sh/${ntfy_konu}-komut/json?poll=1&since=60s
+                capture_response: true
+                max_response_buffer_size: 2048
+                on_response:
+                  then:
+                    - lambda: |-
+                        if (body.find("\"message\":\"vardik\"") != std::string::npos) id(vardik).execute();
+                        else if (body.find("\"message\":\"mola\"") != std::string::npos) id(mola_basla).execute();
   - interval: 10s
     then:
       - lambda: |-
           auto a = id(alarm_durum).state;
           if (a != "kurulu" && a != "caliyor") return;
+          if (id(tasima).state) return;   // yolda / molada: karavan zaten bizimle hareket ediyor
           if (!gps_iyi(id(gps_uydu).state, id(gps_hdop).state, id(gps_enlem).state)) return;
           // Alarm GPS uydu bulmadan kurulduysa ilk iyi konumu referans al
           if (isnan(id(gps_ref_enlem))) {

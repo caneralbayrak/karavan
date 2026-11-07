@@ -29,6 +29,17 @@ h1{font-size:18px;margin:0;padding:10px 14px;background:#1c1c1c}
 #konak.izle{outline:2px solid #4c8}
 #konak.kayma{background:#5a3a00}
 #konak.kayma b{color:#fb4}
+#konak.yol{outline:2px solid #58a6ff}#konak.yol b{color:#58a6ff}
+#konak.mola{outline:2px solid #fb4}#konak.mola b{color:#fb4}
+#mb{background:#1f6feb}#mb.mola{background:#9a5b00}
+#kontrol{display:none;position:fixed;inset:0;background:#111;z-index:8;overflow:auto;padding:10px}
+#kontrol h3{margin:4px 6px 10px}
+#kontrol .ls{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}
+#kontrol .ls button{margin:0;text-align:left;font-size:17px;padding:14px}
+#kontrol .ls button.ok{background:#16301f;color:#4c8}
+#kontrol .alt{display:flex;gap:10px;margin-top:12px}
+#kontrol .alt button{font-size:19px;padding:16px}
+#k_t{background:#1f6feb}
 details{margin-top:10px;color:#aaa}
 details label{display:block;margin:8px 0;font-size:14px}
 select,input{font-size:16px;padding:6px;background:#333;color:#eee;border:1px solid #555;border-radius:6px}
@@ -86,7 +97,8 @@ button.bekle{background:#2a4a6a;color:#cde}
 <div class="c" data-s="genel" id="gps"><small>Konum</small><b>–</b>
  <div class="gb"><div id="g_k">–</div><div>Rakım <em id="g_r">–</em> · Hız <em id="g_h">–</em></div>
  <a id="g_l" target="_blank" style="display:none">Haritada aç</a></div></div>
-<div class="c" data-s="genel" id="konak"><small>Konaklama</small><b>kapalı</b>
+<div class="c" data-s="genel" id="konak"><small>Mod</small><b>kapalı</b>
+ <button id="mb">Yola çıkıyorum</button>
  <button id="kb">Konaklamaya hazır</button>
  <button id="kk" style="display:none">Kontrol ettim, yeni konumu kaydet</button></div>
 <div class="c wide" data-s="aku" id="aku"><small>Akü <span id="bmsd"></span></small>
@@ -160,6 +172,8 @@ button.bekle{background:#2a4a6a;color:#cde}
  </div>
 </div>
 </div>
+<div id="kontrol"><h3>Yola çıkmadan kontrol et</h3><div class="ls" id="k_ls"></div>
+ <div class="alt"><button id="k_v" style="flex:1">Vazgeç</button><button id="k_t" style="flex:2">Yola çık</button></div></div>
 <div id="sor"><div><p id="sor_m"></p><span><button id="sor_h">Vazgeç</button><button id="sor_e">Evet</button></span></div></div>
 <script src="mqtt.min.js"></script>
 <script>
@@ -172,10 +186,15 @@ function el(i){return document.getElementById(i)}
 function val(i){return el(i).getElementsByTagName('b')[0]}
 
 // --- Hafif onay kutusu (Firefox'un confirm() penceresi yavaş cihazda ağır açılıyor) ---
-var sorEvet=null;
-function sor(m,evet){el('sor_m').textContent=m;sorEvet=evet;el('sor').style.display='flex'}
-el('sor_h').onclick=function(){el('sor').style.display='none';sorEvet=null};
-el('sor_e').onclick=function(){el('sor').style.display='none';var f=sorEvet;sorEvet=null;if(f)f()};
+var sorEvet=null,sorHayir=null;
+function sor(m,evet,eYazi,hYazi,hayir){
+ el('sor_m').textContent=m;sorEvet=evet;sorHayir=hayir||null;
+ el('sor_e').textContent=eYazi||'Evet';el('sor_h').textContent=hYazi||'Vazgeç';
+ el('sor').style.display='flex';
+}
+function sorKapat(){el('sor').style.display='none';sorEvet=sorHayir=null}
+el('sor_h').onclick=function(){var f=sorHayir;sorKapat();if(f)f()};
+el('sor_e').onclick=function(){var f=sorEvet;sorKapat();if(f)f()};
 // --- ESP'ye komut giden düğmeler: anında tepki, yanıt gelene kadar ikinci basışı yok say ---
 function bekle(b,yazi,geriAl){
  if(b.classList.contains('bekle'))return false;
@@ -268,17 +287,84 @@ setInterval(function(){
  }
 },1000);
 
-// --- Konaklama (kontrolü ESP32 yapar, panel sadece gösterir ve konuşur) ---
-var konakAcik=false,kayma=false,kaymaSes=0,konakIstek=null;
+// --- Konaklama / taşıma modu (kontrolü ESP32 yapar, panel gösterir ve konuşur) ---
+var konakAcik=false,kayma=false,kaymaSes=0,konakIstek=null,tasima=false,mola=false,durduSoru=false;
+var OLAY_TOPIC='karavan/olay';
+var KONTROL=['Ayaklar kaldırıldı','Tente kapalı','Tavan kapakları kapalı','Pencereler kapalı','Gaz vanası kapalı',
+ 'Buzdolabı kilitli','Dolap kapakları kapalı','Elektrik kablosu söküldü','Su hortumu söküldü',
+ 'Kaplin kilitli, emniyet halatı','13 pin fiş takılı, lambalar','Kapı kilitli'];
 function konakGoster(){
- el('konak').className='c'+(kayma?' kayma':konakAcik?' izle':'');
- val('konak').textContent=kayma?'KONUM DEĞİŞTİ':konakAcik?'izleniyor':'kapalı';
+ el('konak').className='c'+(tasima?(mola?' mola':' yol'):kayma?' kayma':konakAcik?' izle':'');
+ val('konak').textContent=tasima?(mola?'MOLA':'YOLDA'):kayma?'KONUM DEĞİŞTİ':konakAcik?'konaklama':'kapalı';
  bitti(el('kb'));
- el('kb').textContent=konakAcik?'Konaklamayı bitir':'Konaklamaya hazır';
- el('kk').style.display=kayma?'':'none';
+ el('kb').textContent=tasima?'Vardık':konakAcik?'Konaklamayı bitir':'Konaklamaya hazır';
+ el('mb').textContent=!tasima?'Yola çıkıyorum':mola?'Yola devam':'Mola';
+ el('mb').className=tasima&&!mola?'mola':'';
+ el('kk').style.display=kayma&&!tasima?'':'none';
+ el('mb').style.display=kayma&&!tasima?'none':'';
 }
 function konakKomut(on){konakIstek=on;cl.publish(DEV+'/switch/konaklama/command',on?'ON':'OFF')}
-el('kb').onclick=function(){if(bekle(this,konakAcik?'Kapatılıyor…':'Açılıyor…',konakGoster))konakKomut(!konakAcik)};
+el('kb').onclick=function(){
+ if(tasima){vardik(true);return}
+ if(bekle(this,konakAcik?'Kapatılıyor…':'Açılıyor…',konakGoster))konakKomut(!konakAcik);
+};
+el('mb').onclick=function(){if(!tasima)kontrolAc();else if(mola)molaBitir();else molaBasla()};
+// Yola çıkış kontrol listesi
+KONTROL.forEach(function(m){
+ var b=document.createElement('button');b.dataset.m=m;
+ b.onclick=function(){b.classList.toggle('ok');kontrolYaz()};
+ el('k_ls').appendChild(b);
+});
+function kontrolYaz(){
+ var b=el('k_ls').children,eksik=0;
+ for(var i=0;i<b.length;i++){var ok=b[i].classList.contains('ok');if(!ok)eksik++;b[i].textContent=(ok?'✔  ':'○  ')+b[i].dataset.m}
+ el('k_t').textContent=eksik?'Yola çık ('+eksik+' eksik)':'Yola çık';
+ return eksik;
+}
+function kontrolAc(){
+ var b=el('k_ls').children;for(var i=0;i<b.length;i++)b[i].classList.remove('ok');
+ kontrolYaz();el('kontrol').style.display='block';soyle(['kontrol'],true);
+}
+el('k_v').onclick=function(){el('kontrol').style.display='none'};
+el('k_t').onclick=function(){
+ var eksik=kontrolYaz();
+ function basla(){
+  el('kontrol').style.display='none';
+  cl.publish(DEV+'/switch/tasima/command','ON');
+  if(alDurum!=='kapali')alAyarla('kapali',true);
+  soyle(['tasima_ac'],true);
+ }
+ if(eksik)sor('İşaretlenmeyen '+eksik+' madde var. Yine de yola çıkılsın mı?',basla,'Yine de çık','Geri dön');
+ else basla();
+};
+function molaBasla(){
+ cl.publish(DEV+'/switch/mola/command','ON');soyle(['mola'],true);
+ if(alDurum==='kapali')el('ab').onclick();   // çıkış gecikmeli kur
+}
+function molaBitir(){
+ cl.publish(DEV+'/switch/mola/command','OFF');
+ if(alDurum!=='kapali')alAyarla('kapali',true);
+ soyle(['mola_bitti'],true);
+}
+// Vardık: konaklama açılır, alarm kapanır, seviye rehberi başlar
+function vardik(yayin){
+ if(yayin){cl.publish(DEV+'/switch/tasima/command','OFF');cl.publish(DEV+'/switch/konaklama/command','ON')}
+ if(alDurum!=='kapali')alAyarla('kapali',true);
+ soyle(['vardik'],true);sekme('sev');
+ setTimeout(function(){if(!rehber)rehberAyarla(true)},3500);
+}
+function olay(o){
+ if(o==='salinim'){sekme('genel');soyle(['salinim'],true)}
+ else if(o==='durdu'){
+  sekme('genel');soyle(['durduk'],true);durduSoru=true;
+  sor('Durduk. Vardık mı, yoksa mola mı?\n(Telefondaki bildirimden de seçebilirsin.)',
+      function(){durduSoru=false;vardik(true)},'Vardık','Mola',function(){durduSoru=false;molaBasla()});
+ }
+ else if(o==='tasima_oto')soyle(['tasima_oto'],true);
+ else if(o==='mola')soyle(['mola'],true);
+ else if(o==='mola_bitti')soyle(['mola_bitti'],true);
+ else if(o==='vardik')vardik(false);
+}
 el('kk').onclick=function(){
  cl.publish(DEV+'/switch/konaklama/command','OFF');
  setTimeout(function(){konakKomut(true)},800);
@@ -455,6 +541,7 @@ var cl=mqtt.connect(BROKER,{reconnectPeriod:3000});
 cl.on('connect',function(){
  el('st').textContent='bağlı';
  cl.subscribe(AL_TOPIC);
+ cl.subscribe(OLAY_TOPIC);
  cl.subscribe(AYAR_TOPIC);
  cl.subscribe(DEV+'/sensor/+/state');
  cl.subscribe(DEV+'/binary_sensor/+/state');
@@ -468,6 +555,7 @@ cl.on('connect',function(){
 cl.on('close',function(){el('st').textContent='bağlantı yok'});
 function mesaj(t,m){
  var s=m.toString(),p=t.split('/');
+ if(t===OLAY_TOPIC){olay(s);return}
  if(t===AL_TOPIC){
   if(s!==alDurum&&/^(kapali|kurulu|caliyor)$/.test(s))alAyarla(s,false);
   return;
@@ -507,6 +595,13 @@ function mesaj(t,m){
   else if(p[1]==='sensor'){var av=parseFloat(s);if(isNaN(av))return;aku[p[2]]=av;akuZaman=Date.now();if(p[2]==='aku_doluluk'||p[2]==='aku_voltaj')akuSesKontrol()}
   else return;
   akuGoster();
+  return;
+ }
+ if(p[1]==='switch'&&(p[2]==='tasima'||p[2]==='mola')&&p[0]===DEV){
+  if(p[2]==='tasima')tasima=(s==='ON');else mola=(s==='ON');
+  // Soru başka panelden / telefondan yanıtlandıysa açık kutuyu kapat
+  if(durduSoru&&(!tasima||mola)){durduSoru=false;sorKapat()}
+  konakGoster();
   return;
  }
  if(p[1]==='switch'&&p[2]==='konaklama'){

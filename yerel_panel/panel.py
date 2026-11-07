@@ -23,6 +23,7 @@ BROKER = os.environ.get('KARAVAN_BROKER', 'localhost')
 DEV = 'sensor-dugumu'
 AKU_DEV = 'aku-dugumu'   # 2. ESP (akünün yanı): BMS
 AL_TOPIC = 'karavan/alarm'
+OLAY_TOPIC = 'karavan/olay'   # ESP olayları: salinim, durdu, mola, mola_bitti, vardik, tasima_oto
 AYAR_TOPIC = 'karavan/ayar'
 SU_TOPIC = 'karavan/su_doldurma'
 BURASI = os.path.dirname(os.path.abspath(__file__))
@@ -30,6 +31,10 @@ SES_DIR = os.path.join(BURASI, '..', 'panel', 'sesler')
 SIREN = os.path.expanduser('~/.cache/karavan-siren.wav')
 
 GECIKME = 30        # alarm kurulduktan sonra dışarı çıkmak için saniye
+# Yola çıkmadan kontrol listesi
+KONTROL = ('Ayaklar kaldırıldı', 'Tente kapalı', 'Tavan kapakları kapalı', 'Pencereler kapalı',
+           'Gaz vanası kapalı', 'Buzdolabı kilitli', 'Dolap kapakları kapalı', 'Elektrik kablosu söküldü',
+           'Su hortumu söküldü', 'Kaplin kilitli, emniyet halatı', '13 pin fiş takılı, lambalar', 'Kapı kilitli')
 ESIK_CM = 1         # bundan az fark varsa köşe düz sayılır
 AKU_DUSUK, AKU_KRITIK = 20, 10
 # Yedek: BMS'in % sayacı kayabiliyor (2026-11-07: %98 dedi, gerçekte ~%30). LiFePO4 4S voltajı
@@ -42,7 +47,7 @@ BG, KART, KENAR, YAZI, SOLUK, ESKI = '#0d1117', '#161b22', '#2a3340', '#e8edf3',
 YESIL, TURUNCU, MAVI, SARI, MOR = '#56d364', '#f0883e', '#79c0ff', '#e3b341', '#d2a8ff'
 KIRMIZI, UYARI, SU_MAVI = '#ff7b72', '#f0b33a', '#388bfd'
 DUGME, DUGME_BAS, BEKLE, SECILI = '#262e3a', '#3a4556', '#2a4a6a', '#1f6feb'
-KIRMIZI_DUGME, YESIL_DUGME = '#b62324', '#1a7f37'
+KIRMIZI_DUGME, YESIL_DUGME, TURUNCU_DUGME = '#b62324', '#1a7f37', '#9a5b00'
 KAYMA_BG, HAREKET_BG, ALARM_BG = '#4a3000', '#3a1416', '#8b1a1a'
 UST_BG = '#161b22'
 SIMGE_DIR = os.path.join(BURASI, 'simgeler')
@@ -309,6 +314,7 @@ class Panel:
         self.seen = {}
         self.al_durum, self.kalan, self.sayac, self.flas = 'kapali', 0, None, False
         self.konak_acik, self.kayma, self.kayma_ses, self.konak_istek = False, False, 0, None
+        self.tasima, self.mola, self.durdu_soru = False, False, False
         self.aku, self.aku_zaman, self.aku_uyari = {}, 0, 0
         self.v_alt = {1: None, 2: None}   # voltaj eşiğin altına ne zaman indi
         self.bms_bagli, self.bms_baglanti = False, True
@@ -334,6 +340,7 @@ class Panel:
         self._su(self.sayfalar['su'])
         self._seviye(self.sayfalar['sev'])
         self._onay_kutusu()
+        self._kontrol_kutusu()
         self._perde_kur()
         # Düğme dışına (yazı, kart, boşluk) düşen dokunuşlar: yakındaki düğmeye ver
         kok.bind_all('<ButtonRelease-1>', self._bosluga_dokunus, add='+')
@@ -423,14 +430,16 @@ class Panel:
         for a, d in self.sekme_d.items():
             d.renk_ayarla(SECILI if a == ad else DUGME)
 
-    def sor(self, metin, evet):
-        self.sor_evet = evet
+    def sor(self, metin, evet, evet_yazi='Evet', hayir_yazi='Vazgeç', hayir=None):
+        self.sor_evet, self.sor_hayir = evet, hayir
         self.sor_m.config(text=metin)
+        self.sor_e.config(text=evet_yazi)
+        self.sor_h.config(text=hayir_yazi)
         self.sor_f.place(x=0, y=0, width=800, height=480)
         self.sor_f.tkraise()
 
     def _onay_kutusu(self):
-        self.sor_evet = None
+        self.sor_evet = self.sor_hayir = None
         f = tk.Frame(self.kok, bg='#080808')
         k = tk.Frame(f, bg=KART, highlightthickness=1, highlightbackground=KENAR)
         k.place(x=130, y=130, width=540, height=200)
@@ -438,13 +447,63 @@ class Panel:
         self.sor_m.place(x=18, y=14)
 
         def kapat(evet):
+            self.durdu_soru = False
             f.place_forget()
-            fn, self.sor_evet = self.sor_evet, None
-            if evet and fn:
+            fn = self.sor_evet if evet else self.sor_hayir
+            self.sor_evet = self.sor_hayir = None
+            if fn:
                 fn()
-        Dugme(k, 'Vazgeç', lambda: kapat(False), boy=16).place(x=18, y=118, width=240, height=62)
-        Dugme(k, 'Evet', lambda: kapat(True), boy=16, renk=YESIL_DUGME).place(x=280, y=118, width=240, height=62)
+        self.sor_h = Dugme(k, 'Vazgeç', lambda: kapat(False), boy=16)
+        self.sor_h.place(x=18, y=118, width=240, height=62)
+        self.sor_e = Dugme(k, 'Evet', lambda: kapat(True), boy=16, renk=YESIL_DUGME)
+        self.sor_e.place(x=280, y=118, width=240, height=62)
         self.sor_f = f
+
+    # ---------------- Yola çıkış kontrol listesi
+    def _kontrol_kutusu(self):
+        f = tk.Frame(self.kok, bg=BG)
+        tk.Label(f, text='Yola çıkmadan kontrol et', bg=BG, fg=YAZI, font=F(16, True), anchor='w').place(x=16, y=8)
+        self.kontrol_d = []
+        for i, m in enumerate(KONTROL):
+            d = Dugme(f, '', None, boy=13, anchor='w', padx=12)
+            d.komut = (lambda d=d: self._kontrol_isaretle(d))
+            d.metin, d.tamam = m, False
+            d.place(x=12 + (i % 2) * 392, y=46 + (i // 2) * 56, width=384, height=50)
+            self.kontrol_d.append(d)
+        Dugme(f, 'Vazgeç', lambda: f.place_forget(), boy=15).place(x=12, y=400, width=250, height=70)
+        self.kontrol_t = Dugme(f, 'Yola çık', self._kontrol_bitti, boy=16, renk=SECILI)
+        self.kontrol_t.place(x=278, y=400, width=510, height=70)
+        self.kontrol_f = f
+
+    def _kontrol_isaretle(self, d):
+        d.tamam = not d.tamam
+        d.config(text=('✔  ' if d.tamam else '○  ') + d.metin, fg=YESIL if d.tamam else YAZI)
+        d.renk_ayarla('#16301f' if d.tamam else DUGME)
+        eksik = sum(not x.tamam for x in self.kontrol_d)
+        self.kontrol_t.config(text='Yola çık' if not eksik else 'Yola çık (%d eksik)' % eksik)
+
+    def kontrol_ac(self):
+        for d in self.kontrol_d:
+            d.tamam = True
+            self._kontrol_isaretle(d)      # hepsini "yapılmadı" yap
+        self.kontrol_f.place(x=0, y=0, width=800, height=480)
+        self.kontrol_f.tkraise()
+        self.ses.soyle(['kontrol'], True)
+
+    def _kontrol_bitti(self):
+        eksik = [d.metin for d in self.kontrol_d if not d.tamam]
+
+        def basla():
+            self.kontrol_f.place_forget()
+            self.yayinla(DEV + '/switch/tasima/command', 'ON')
+            if self.al_durum != 'kapali':
+                self.al_ayarla('kapali', True)
+            self.ses.soyle(['tasima_ac'], True)
+        if eksik:
+            self.sor('İşaretlenmeyen %d madde var:\n%s\nYine de yola çıkılsın mı?' % (len(eksik), ', '.join(eksik[:4]) + ('…' if len(eksik) > 4 else '')),
+                     basla, evet_yazi='Yine de çık', hayir_yazi='Geri dön')
+        else:
+            basla()
 
     # ---------------- Genel
     def _genel(self, s):
@@ -464,12 +523,14 @@ class Panel:
         self.al_l = deger(self.al_f, 14, 44, boy=26)
         self.ab = Dugme(self.al_f, 'Alarmı kur', self.alarm_dugme, boy=15, renk=KIRMIZI_DUGME)
         self.ab.place(x=14, y=144, width=227, height=54)
-        self.konak_f, _ = kart(s, 534, 106, 258, 212, 'Konaklama', 'konak')
-        self.konak_l = deger(self.konak_f, 14, 44, boy=26)
+        self.konak_f, _ = kart(s, 534, 106, 258, 212, 'Mod', 'konak')
+        self.konak_l = deger(self.konak_f, 14, 40, boy=24)
         self.kb = Dugme(self.konak_f, 'Konaklamaya hazır', self.konak_dugme, boy=15, renk=YESIL_DUGME)
         self.kb.place(x=14, y=144, width=230, height=54)
+        # üst düğme: Yola çıkıyorum / Mola / Yola devam (kayma varken yerine "yeni konumu kaydet")
+        self.mb = Dugme(self.konak_f, 'Yola çıkıyorum', self.yol_dugme, boy=14, renk=SECILI)
         self.kk = Dugme(self.konak_f, 'Kontrol ettim, yeni\nkonumu kaydet', self.konak_yeni, boy=13)
-        self.kk_yer = dict(x=14, y=88, width=230, height=50)
+        self.kk_yer = dict(x=14, y=86, width=230, height=52)
         # alt şerit: akü, su, konum özeti
         f, _ = kart(s, 8, 326, 255, 84, 'Akü', 'aku')
         self.oz_aku = tk.Label(f, text='–', bg=KART, fg=YAZI, font=F(17, True), anchor='e')
@@ -567,7 +628,7 @@ class Panel:
     def _baglandi(self, c, u, flags, rc, props=None):
         if rc != 0:
             return
-        for t in (AL_TOPIC, AYAR_TOPIC, SU_TOPIC, DEV + '/sensor/+/state', DEV + '/binary_sensor/+/state',
+        for t in (AL_TOPIC, AYAR_TOPIC, SU_TOPIC, OLAY_TOPIC, DEV + '/sensor/+/state', DEV + '/binary_sensor/+/state',
                   DEV + '/switch/+/state', DEV + '/text_sensor/su_kalibrasyon/state', DEV + '/number/+/state',
                   AKU_DEV + '/+/+/state'):
             c.subscribe(t)
@@ -593,6 +654,9 @@ class Panel:
             self.st.config(text='● ' + s, fg=YESIL if s == 'bağlı' else KIRMIZI)
             return
         p = t.split('/')
+        if t == OLAY_TOPIC:
+            self.olay(s)
+            return
         if t == AL_TOPIC:
             if s != self.al_durum and s in ('kapali', 'kurulu', 'caliyor'):
                 self.al_ayarla(s, False)
@@ -671,6 +735,15 @@ class Panel:
             else:
                 return
             self.aku_goster()
+            return
+        if p[1] == 'switch' and ad in ('tasima', 'mola') and p[0] == DEV:
+            setattr(self, ad, s == 'ON')
+            # Soru telefondan / başka panelden yanıtlandıysa açık kutuyu kapat
+            if self.durdu_soru and (not self.tasima or self.mola):
+                self.durdu_soru = False
+                self.sor_f.place_forget()
+                self.sor_evet = self.sor_hayir = None
+            self.konak_goster()
             return
         if p[1] == 'switch' and ad == 'konaklama':
             self.konak_acik = (s == 'ON')
@@ -768,26 +841,97 @@ class Panel:
 
     # ================================================================ Konaklama
     def konak_goster(self):
-        self.konak_f.renk(KAYMA_BG if self.kayma else KART,
-                          UYARI if self.kayma else YESIL if self.konak_acik else None)
-        self.konak_l.config(text='KONUM DEĞİŞTİ' if self.kayma else 'izleniyor' if self.konak_acik else 'kapalı',
-                            fg=UYARI if self.kayma else YESIL if self.konak_acik else SOLUK,
-                            font=F(17 if self.kayma else 26, True))
+        if self.tasima:
+            yazi, renk = ('MOLA' if self.mola else 'YOLDA'), (TURUNCU if self.mola else MAVI)
+        elif self.kayma:
+            yazi, renk = 'KONUM DEĞİŞTİ', UYARI
+        elif self.konak_acik:
+            yazi, renk = 'konaklama', YESIL
+        else:
+            yazi, renk = 'kapalı', SOLUK
+        self.konak_f.renk(KAYMA_BG if self.kayma and not self.tasima else KART, None if renk == SOLUK else renk)
+        self.konak_l.config(text=yazi, fg=renk, font=F(17 if yazi == 'KONUM DEĞİŞTİ' else 24, True))
         self.kb.bitti()
-        self.kb.config(text='Konaklamayı bitir' if self.konak_acik else 'Konaklamaya hazır')
-        self.kb.renk_ayarla(DUGME if self.konak_acik else YESIL_DUGME)
-        if self.kayma:
+        self.mb.bitti()
+        if self.tasima:
+            self.kb.config(text='Vardık')
+            self.kb.renk_ayarla(YESIL_DUGME)
+            self.mb.config(text='Yola devam' if self.mola else 'Mola')
+            self.mb.renk_ayarla(SECILI if self.mola else TURUNCU_DUGME)
+        else:
+            self.kb.config(text='Konaklamayı bitir' if self.konak_acik else 'Konaklamaya hazır')
+            self.kb.renk_ayarla(DUGME if self.konak_acik else YESIL_DUGME)
+            self.mb.config(text='Yola çıkıyorum')
+            self.mb.renk_ayarla(SECILI)
+        if self.kayma and not self.tasima:
+            self.mb.place_forget()
             self.kk.place(**self.kk_yer)
         else:
             self.kk.place_forget()
+            self.mb.place(**self.kk_yer)
 
     def konak_komut(self, on):
         self.konak_istek = on
         self.yayinla(DEV + '/switch/konaklama/command', 'ON' if on else 'OFF')
 
     def konak_dugme(self):
+        if self.tasima:
+            self.vardik(True)
+            return
         if self.kb.bekle('Kapatılıyor…' if self.konak_acik else 'Açılıyor…', self.konak_goster):
             self.konak_komut(not self.konak_acik)
+
+    # ================================================================ Taşıma modu
+    def yol_dugme(self):
+        if not self.tasima:
+            self.kontrol_ac()
+        elif self.mola:
+            self.mola_bitir()
+        else:
+            self.mola_basla()
+
+    def mola_basla(self):
+        self.yayinla(DEV + '/switch/mola/command', 'ON')
+        self.ses.soyle(['mola'], True)
+        if self.al_durum == 'kapali':
+            self.alarm_dugme()          # çıkış gecikmeli kur
+
+    def mola_bitir(self):
+        self.yayinla(DEV + '/switch/mola/command', 'OFF')
+        if self.al_durum != 'kapali':
+            self.al_ayarla('kapali', True)
+        self.ses.soyle(['mola_bitti'], True)
+
+    def vardik(self, yayin):
+        """Vardık: konaklama açılır, alarm kapanır, seviye rehberi başlar."""
+        if yayin:
+            self.yayinla(DEV + '/switch/tasima/command', 'OFF')
+            self.yayinla(DEV + '/switch/konaklama/command', 'ON')
+        if self.al_durum != 'kapali':
+            self.al_ayarla('kapali', True)
+        self.ses.soyle(['vardik'], True)
+        self.sekme('sev')
+        self.kok.after(3500, lambda: self.rehber or self.rehber_ayarla(True))
+
+    def olay(self, o):
+        self.uyan()
+        if o == 'salinim':
+            self.sekme('genel')
+            self.ses.soyle(['salinim'], True)
+        elif o == 'durdu':
+            self.sekme('genel')
+            self.ses.soyle(['durduk'], True)
+            self.durdu_soru = True
+            self.sor('Durduk. Vardık mı, yoksa mola mı?\n(Telefondaki bildirimden de seçebilirsin.)',
+                     lambda: self.vardik(True), evet_yazi='Vardık', hayir_yazi='Mola', hayir=self.mola_basla)
+        elif o == 'tasima_oto':
+            self.ses.soyle(['tasima_oto'], True)
+        elif o == 'mola':
+            self.ses.soyle(['mola'], True)
+        elif o == 'mola_bitti':
+            self.ses.soyle(['mola_bitti'], True)
+        elif o == 'vardik':
+            self.vardik(False)
 
     def konak_yeni(self):
         self.yayinla(DEV + '/switch/konaklama/command', 'OFF')
