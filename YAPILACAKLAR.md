@@ -47,6 +47,7 @@ Ayrı terminalde `ssh karavan@192.168.1.117` ile bağlanıp sırayla:
 - [ ] Birkaç gün sonra WiFi bekçisinin kaydına bak (`/var/log/wifi-bekci.log`): kopma oldu mu, kaç sn'de geri geldi (Claude bakar)
 - [ ] **Seri yuva GND'sini doğrula:** mini PC KAPALIYKEN multimetre bip ayarında beyaz-yeşil ve kahverengi teller şasiyle (USB soketinin metali) bip veriyor mu
 - [x] Çift DHCP düzeltildi (2026-11-06): dhcpcd kapatıldı, mini PC evde sabit .117; yeniden başlatma testi geçti
+- [ ] (Acil değil) Kart yuvaları testi: arkadaki SD yuvasına kart takıp okunuyor mu bak; öndeki SIM yuvası (OmniKey okuyucu, modem DEĞİL) için pcscd + libccid + pcsc-tools kurup eski bir SIM'le dene
 - [ ] Karavana taşınırken: karavan modeminde mini PC'ye sabit IP (ya da connman'da elle), ESP'nin broker adresini yeni ağa göre ayarla
 - [x] Dahili hoparlörler çalıştı (2026-11-06): amfi EAPD sinyaliyle açılıyor, sürücü yamasıyla kalıcı. Ayrıntı: mini_pc/BENIOKU.md
 - [x] Kulaklık + hoparlör otomatik geçiş (2026-11-06): jak takılınca ses jaktan (harici amfi), çıkınca dahili hoparlörden — PipeWire jak algılamasıyla kendiliğinden yapıyor, ayar gerekmedi
@@ -54,12 +55,22 @@ Ayrı terminalde `ssh karavan@192.168.1.117` ile bağlanıp sırayla:
 
 ### Sonra
 - [ ] ESP'ye yeni yazılımı yükle (Claude yapabilir)
+- [ ] **2. ESP (aku-dugumu) karavanda akünün yanında (2026-11-07 takıldı):** BMS sinyali -60/-70 dBm, çalışıyor. AMA ev WiFi'si karavanda -88/-90 → veri panele gelmiyor ve ESP BMS'i tuttuğu için 1. ESP de okuyamıyor. Yapılacaklar: (1) balkona WiFi güçlendirici (hazır repeater önerildi; kullanıcının fikri ESP32-C5 köprü); (2) yazılım: WiFi/MQTT birkaç dk yoksa BMS'i bıraksın, gelince geri alsın (yüklemek için laptopla karavana git ya da USB); (3) WiFi çözülünce sensor-dugumu.yaml'dan BMS kısmını çıkar
+- [ ] **Akü SOC kaymış (2026-11-07):** BMS ve Smart BMS uygulaması %98, gerçek ~%30 (13,1 V, akü üstü ekran %29,8). Aküyü 220V ile tam doldur → BMS %100'e sıfırlansın. Panele voltaja dayalı yedek uyarı eklendi (12,9 V / 12,6 V, 2 dk)
 - [ ] Kışın su tesisatını boşalt (akış sensörü donarsa çatlar)
 - [ ] **2. ESP32 (aynı karttan 3 tane var):** akü ve ısıtıcının yanına konacak; akü BMS Bluetooth'u (1. ESP'den buraya taşınacak, -97 dBm sorunu), ısıtıcı mavi tel, CC1101, belki gaz sensörleri. 1. ESP: eğim, hareket, GPS, su, iç sıcaklık. 1. ESP yazılımı 2026-11-04'te hafızanın ~%82'si.
 - [ ] **Montaj şekli (kullanıcının kararı 2026-11-05):** PCB yok, prototip doğrudan karavana; delikli plaket + ESP'ler dişi pin yuvasında + vidalı klemensler. 12V girişine sigorta, plastik kutu, kablolara gerginlik önleyici (kelepçe). Claude her plaket için renkli yerleşim şeması çizecek.
 - [ ] **Kartların yeri: akünün yanı** (kullanıcının kararı, boş yer var). Oradan kabine kablo gerekenler: BME280 (iç sıcaklık; I2C uzun kabloda sorun çıkarır → yerine DS18B20 ya da kısa kablo), PIR (görüş lazım), GPS anteni (gökyüzü), su sensörleri. MPU6050 sağlam bir yere vidalanırsa her yerde olur.
 - [ ] **Işık röleleri (8'li röle kartı):** mekanik anahtarlarla birlikte çalışsın → anahtarları vavien (iki yollu) anahtarla değiştir, rölenin COM/NO/NC uçlarıyla vavien bağlantısı yap (düz paralel bağlantıda anahtar açıkken röle söndüremez). Işığın gerçek durumunu okumak için lamba hattından optokuplörle/bölücüyle geri bildirim. Röle başına ~70 mA çekiyor (akü tüketimi). Kullanıcıya göre anahtarlar 3 uçlu; vavien mi ışıklı mı belli değil → karavanda elektrik kesik iken multimetre bip testiyle iki konumda A-B/A-C/B-C ölç, fotoğraf çek.
 - [ ] **Dizel ısıtıcı (Sensation, Çin malı; 433 MHz kumandası var, dijital paneli var):** (1) panel kablosundaki mavi veri telini ESP32 ile sadece dinle → durum/sıcaklık/hata kodu (github.com/timmchugh11/Chinese-Diesel-Heater---ESPHome); (2) açma/kapamayı CC1101 ile kumandayı taklit ederek yap (github.com/jakkik/DieselHeaterRF). Önce: panelin, kablonun ve fişin fotoğrafı; tel renklerini multimetreyle ölç. Panel sökülebiliyor: eve getirip içini açıp PCB üzerindeki pin yazılarına (5V/GND/TX/RX vb.) bakabiliriz (kullanıcının fikri). **Termostat:** bu modelin panelinde termostat yok (satıcı "panel değişirse olur" dedi); ESP kendi termostatını yapsın: BME280 iç sıcaklığına göre ısıtıcının gücünü kumandayla artır/azalt, sık aç-kapa yapma (buji ve karbonlanma). Uzaktan çalıştırmadan önce MQ-7 CO sensörü kurulsun.
+- [ ] **Karavan fotoğraflarından çıkanlar (2026-11-07):**
+  - Elektrik bölmesi: Mexxcell LiFePO4 ~200 Ah, Hegel 1000 W tam sinüs inverter, Mexxsun 40 A şarj cihazı (LiFePO4 modunda mı? kontrol), Hegel MPPT, kırmızı ayırıcılar (Panel/MPPT/Akü), AC sigorta kutusu. **Akü + kutbunda ana sigorta (ANL/MEGA) var mı? bak.** Akü üstündeki bant rulosu kaldırılsın.
+  - MPPT'de RJ45/RS485 var mı? → varsa güneş gücü doğrudan okunur (gölge uyarısı kolaylaşır). Fotoğraf çekilecek.
+  - **İnverter:** kullanıcı Capella paneline inverterin açma anahtarına paralel kendi anahtarını (O/I, voltmetrenin yanı) takmış → ESP için aynısına paralel röle: panelden inverter aç/kapa (boşta 10-20 W yakar). Anahtar sinyal hattı mı güç hattı mı, ölçülecek.
+  - **Capella anahtarları ışıklı açma-kapama (3 uç = giriş, çıkış, LED eksi), vavien DEĞİL** (fotoğraftan tahmin, ölçüyle doğrula). Paralel röle: ESP açabilir, anahtar açıkken söndüremez. Dış aydınlatma (alarm yanıp sönme) ve Hidrofor için yeterli. Tam kontrol için anahtarlar ESP girişi olur (sonra).
+  - **Tavan fanı (Berhimi):** nem/sıcaklığa göre otomatik (BME280), MOSFET ile, DC ise hız ayarı.
+  - **Şofben (gazlı, bacalı):** MQ-7 CO sensörü yakınına; kışın içindeki su da boşaltılsın.
+  - **Isıtıcı paneli:** renkli LCD, 5 tuş + 433 MHz kumanda. Mavi tel projesi eski 3 telli LCD'ler için; bu tip farklı protokol olabilir → panel arkasındaki tel sayısı ve renkleri.
 - [ ] Proje bitince: prototip karavanda oturunca KiCad ile şema + PCB çiz, dosyaları (Gerber dahil) GitHub'a koy; başkaları kendi yaptırabilsin (kullanıcının fikri 2026-11-05)
 - [ ] Yerel panel yeni görünüm (2026-11-06): Genel sekmesi bitti, kullanıcı beğendi. Sırada Akü, Su ve Seviye sekmelerinin tasarımı; sonra web paneli (panel/index.html) aynı tarza
 - [x] Sesli uyarılar yenilendi (2026-11-06/07): Chatterbox + FLEURS kadın sesi, 218 dosya; ayak+santim tek cümle (sol_arka_indir_7), ses seviyesi eşit, hışırtı temizlendi. Üretim: tasarim/ses_uretim/
@@ -94,13 +105,27 @@ Ayrı terminalde `ssh karavan@192.168.1.117` ile bağlanıp sırayla:
 
 ### Diğer (konuşulacak, acele yok)
 - [ ] Gaz / CO (MQ-6, MQ-7 elde var; karavanda pilli CO ve LPG dedektörü zaten var)
+- [ ] **Geri görüş kamerası (2026-11-07, karar sonra):** park sensörü yerine kamera. Öneri: hazır kablosuz set (2.4 GHz dijital, ayrı küçük ekran, "uzun menzilli"; ~2.000-5.000 TL), bizim sisteme bağlı değil → gecikme yok, sistem bozulsa da çalışır. Kamera beslemesi 13 pinli fişteki **geri vites lambası** hattından → geri vitese takınca kendiliğinden açılır. WiFi/ESP32-CAM ile telefondan izleme sürüş için önerilmez (0,5-1 sn gecikme). Alternatif: arka tampona 2-3 adet JSN-SR04T ultrasonik park sensörü (2. ESP'ye), mesafe telefondaki web panelinde + buzzer
+- [ ] **Alarm çalarken dış ışıklar yanıp sönsün (kullanıcının fikri 2026-11-07):** alarm "çalıyor" durumuna geçince dış ışık(lar) ~1 sn aralıkla yanıp sönsün, alarm susunca/kapatılınca eski hâline dönsün (ışık önceden açıksa açık kalsın). Işık röleleri işine bağlı (2. ESP + vavien bağlantı). Mekanik röle sürekli yanıp sönmeye uygun değil (aşınır) → dış ışık için **MOSFET modülü** (ör. IRF520/IRLZ44N, 12V) daha iyi; ya da röle + en fazla birkaç dakika yanıp sönme sınırı. Mantık ESP'de olsun (WiFi/mini PC kopsa da çalışsın). Hangi lambaların dış ışık olduğuna karavanda bakılacak (tente lambası vb.)
+- [ ] **Güvenlik kamerası (isteğe bağlı, sonra):** alarm kuruluyken PIR hareket görünce kamera fotoğraf çeksin, ntfy ile telefona göndersin (ESP32-CAM ya da mini PC'ye USB kamera)
 
 ## Yazılım işleri (Claude yapacak)
 - [ ] **APRS iGate köprüsü:** telsizin seri çıkışı (RS-232, APRS-IS biçiminde metin) → MAX3232 → mini PC TARGET yuvası (ttyS0, TTL) → SIM interneti varken APRS-IS'e gönderen betik
 - [ ] (Sonra) Eski iPad'i panel olarak dene: web paneli eski Safari'de çalışıyor mu? Mini PC ekranı zayıf (rezistif, bazı dokunuşları kaçırıyor)
 - [x] **Mini PC için tarayıcısız panel** (2026-11-01): yerel_panel/panel.py, kioskta varsayılan
+- [ ] **TAŞIMA MODU (kullanıcı onayladı 2026-11-07, "hepsi güzel"):** konaklama modunun karşılığı; panelde "Yola çıkıyorum" düğmesi.
+  - **Hazırlık:** su pompası, inverter, ışıklar kapansın (röleler gelince); hareket alarmı ve kayma uyarısı yolda susturulsun.
+  - **Sesli kontrol listesi:** ayaklar kalktı mı, tente, tavan kapağı, pencereler, gaz vanası, buzdolabı kilidi, şofben/ısıtıcı → panelde dokunarak onay.
+  - **Kapı/pencere/tavan kapağı sensörleri** (mıknatıslı reed, parça alınacak): açık kalan varsa yola çıkarken uyarı.
+  - **Savrulma uyarısı:** MPU6050 ile yanal salınım (snaking) algılanınca arabadaki telefona acil ntfy (öncelikli iş, donanım hazır).
+  - **Lastik basıncı:** BLE TPMS sibop sensörleri (parça alınacak) → 2. ESP okur; düşük basınç/sönme → telefona bildirim.
+  - **Yolculuk kaydı:** GPS'ten yol, süre, en yüksek hız, rota; yolda güneşten gelen şarj (BMS akımı; 13 pinden şarj YOK, kablo uzun/ince — kullanıcı). Varınca panelde özet.
+  - **İç sıcaklık:** donma / aşırı ısınma uyarısı.
+  - **Durunca soru:** hız birkaç dk sıfırda kalınca panel + telefon: "Vardık mı, moladayız mı?" → **Vardık:** konaklama moduna geç, seviye rehberi başlasın, pompa açılsın. **Moladayız:** taşıma modunda kal; karavan başında kimse yoksa hareket alarmı geçici kurulsun, yeniden yola çıkınca (GPS hızı) kendiliğinden kapansın.
+  - **Unutma uyarısı:** GPS hızı birkaç dk >15 km/s ve taşıma modu kapalıysa telefona "Taşıma modunu açmayı unuttun".
 - [ ] **Rakım:** GPS + MS5611 (GY-63) birleşimi; panelde rakım ve yol boyu tırmanış
 - [ ] **Fırtına uyarısı:** basınç 3 saatte >3 hPa düşerse uyarı (yükseklik değişimi GPS ile ayıklanır)
+- [ ] **Panel gölgede mi? uyarısı (2026-11-07):** paneller tavanda DÜZ → karavanın yönü önemsiz, sadece gölge önemli. GPS konum + tarih/saat → güneş yüksekliği → beklenen panel gücü (internet varsa bulut tahmini de); BMS'den gelen gerçek şarj akımıyla karşılaştır; hava açıkken çok düşükse "Paneller gölgede olabilir" uyarısı. Panelde gün doğumu/batımı ve öğlen güneş yüksekliği. **BMS verisine bağlı → önce 2. ESP**
 - [ ] **Akü donma koruması:** akü 0 °C altındayken şarj olursa uyarı (BMS sıcaklığı)
 - [ ] **Su donma uyarısı:** su/hortum sıcaklığı 0 °C'ye yaklaşınca uyarı (+ istenirse pompayı kapat)
 - [x] **GPS alarmı:** alarm kuruluyken 50 m+ yer değiştirirse ntfy bildirimi (konum linkiyle) — kod yazıldı 2026-11-03

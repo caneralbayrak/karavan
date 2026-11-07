@@ -21,6 +21,7 @@ import paho.mqtt.client as mqtt
 
 BROKER = os.environ.get('KARAVAN_BROKER', 'localhost')
 DEV = 'sensor-dugumu'
+AKU_DEV = 'aku-dugumu'   # 2. ESP (akünün yanı): BMS
 AL_TOPIC = 'karavan/alarm'
 AYAR_TOPIC = 'karavan/ayar'
 SU_TOPIC = 'karavan/su_doldurma'
@@ -31,6 +32,9 @@ SIREN = os.path.expanduser('~/.cache/karavan-siren.wav')
 GECIKME = 30        # alarm kurulduktan sonra dışarı çıkmak için saniye
 ESIK_CM = 1         # bundan az fark varsa köşe düz sayılır
 AKU_DUSUK, AKU_KRITIK = 20, 10
+# Yedek: BMS'in % sayacı kayabiliyor (2026-11-07: %98 dedi, gerçekte ~%30). LiFePO4 4S voltajı
+# bu eşiklerin altında AKU_V_SURE saniye kalırsa da uyar (Webasto bujisi gibi anlık düşüşleri sayma)
+AKU_V_DUSUK, AKU_V_KRITIK, AKU_V_SURE = 12.9, 12.6, 120
 KARART_SN = 300    # 5 dk dokunulmazsa ekran kararır (akü tasarrufu)
 
 # Renkler (web paneliyle aynı)
@@ -306,6 +310,7 @@ class Panel:
         self.al_durum, self.kalan, self.sayac, self.flas = 'kapali', 0, None, False
         self.konak_acik, self.kayma, self.kayma_ses, self.konak_istek = False, False, 0, None
         self.aku, self.aku_zaman, self.aku_uyari = {}, 0, 0
+        self.v_alt = {1: None, 2: None}   # voltaj eşiğin altına ne zaman indi
         self.bms_bagli, self.bms_baglanti = False, True
         self.su, self.su_zaman, self.su_alt, self.su_dolum, self.pompa = {}, 0, None, 0, None
         self.su_kal = '–'
@@ -563,7 +568,8 @@ class Panel:
         if rc != 0:
             return
         for t in (AL_TOPIC, AYAR_TOPIC, SU_TOPIC, DEV + '/sensor/+/state', DEV + '/binary_sensor/+/state',
-                  DEV + '/switch/+/state', DEV + '/text_sensor/su_kalibrasyon/state', DEV + '/number/+/state'):
+                  DEV + '/switch/+/state', DEV + '/text_sensor/su_kalibrasyon/state', DEV + '/number/+/state',
+                  AKU_DEV + '/+/+/state'):
             c.subscribe(t)
         self.gelen.put(('_durum', 'bağlı'))
 
@@ -660,7 +666,7 @@ class Panel:
                     return
                 self.aku[ad] = v
                 self.aku_zaman = time.time()
-                if ad == 'aku_doluluk':
+                if ad in ('aku_doluluk', 'aku_voltaj'):
                     self.aku_ses_kontrol()
             else:
                 return
@@ -860,22 +866,28 @@ class Panel:
             self.bas_e.config(text='► sabit', fg=SOLUK)
 
     def aku_ses_kontrol(self):
-        d = self.aku.get('aku_doluluk')
-        if d is None:
-            return
-        # 0 normal, 1 düşük uyarısı verildi, 2 kritik uyarısı verildi (25 üstüne çıkınca sıfırlanır)
-        if d < AKU_KRITIK and self.aku_uyari < 2:
+        d, v, simdi = self.aku.get('aku_doluluk'), self.aku.get('aku_voltaj'), time.time()
+        for sv, esik in ((1, AKU_V_DUSUK), (2, AKU_V_KRITIK)):
+            if v is not None and v < esik:
+                self.v_alt[sv] = self.v_alt[sv] or simdi
+            else:
+                self.v_alt[sv] = None
+        v_sev = max([sv for sv, t in self.v_alt.items() if t and simdi - t >= AKU_V_SURE] or [0])
+        d_sev = 0 if d is None else 2 if d < AKU_KRITIK else 1 if d < AKU_DUSUK else 0
+        sev = max(v_sev, d_sev)
+        # aku_uyari: 0 normal, 1 düşük uyarısı verildi, 2 kritik uyarısı verildi
+        if sev == 2 and self.aku_uyari < 2:
             self.ses.soyle(['aku_kritik'])
             self.aku_uyari = 2
-        elif d < AKU_DUSUK and self.aku_uyari < 1:
+        elif sev == 1 and self.aku_uyari < 1:
             self.ses.soyle(['aku_dusuk'])
             self.aku_uyari = 1
-        elif d >= AKU_DUSUK + 5:
+        elif sev == 0 and (d is None or d >= AKU_DUSUK + 5) and (v is None or v >= AKU_V_DUSUK + 0.2):
             self.aku_uyari = 0
 
     def bt_dugme(self):
         if self.bb.bekle('Bekleyin…', self.aku_goster):
-            self.yayinla(DEV + '/switch/bms_baglanti/command', 'OFF' if self.bms_baglanti else 'ON')
+            self.yayinla(AKU_DEV + '/switch/bms_baglanti/command', 'OFF' if self.bms_baglanti else 'ON')
 
     # ================================================================ Su
     def su_goster(self):

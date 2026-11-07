@@ -1,0 +1,183 @@
+# 2. ESP32: akünün yanına konacak düğüm (2026-11-07)
+# Şimdilik: akü BMS'i (Bluetooth). Sonra: ısıtıcı, ışık röleleri, park sensörü vb.
+# NOT: BMS aynı anda tek bağlantı kabul ediyor → bu kart karavana takılınca
+#      sensor-dugumu.yaml'dan BMS kısmı çıkarılacak.
+
+substitutions:
+  ntfy_konu: !secret ntfy_konu
+
+esphome:
+  name: aku-dugumu
+  on_boot:
+    # OTA sırasında kapatılan akü bağlantısını açılışta geri aç
+    - priority: -100
+      then:
+        - switch.turn_on: bms_baglanti
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+external_components:
+  # Daly BMS (akü) Bluetooth bileşeni, test edilen sürüme sabitlendi
+  - source: github://syssi/esphome-daly-bms@b0e79de238c756bce67f8415c82febc6d79cb67c
+    refresh: never
+
+logger:
+
+api:
+  encryption:
+    key: !secret api_anahtari
+
+ota:
+  - platform: esphome
+    encryption:
+    on_begin:
+      - switch.turn_off: bms_baglanti
+
+wifi:
+  networks:
+    - ssid: !secret wifi1_ad
+      password: !secret wifi1_sifre
+    - ssid: !secret wifi2_ad
+      password: !secret wifi2_sifre
+    # Telefon hotspot'u (ev ağı yetişmezse; o zaman MQTT yok, değerler web sayfasında)
+    - ssid: !secret wifi3_ad
+      password: !secret wifi3_sifre
+      priority: -1
+    - ssid: !secret wifi3b_ad
+      password: !secret wifi3_sifre
+      priority: -1
+  # Telefon hotspot'una bağlanınca adresini telefona bildir (orada MQTT/panel yok)
+  on_connect:
+    - delay: 10s
+    - if:
+        condition:
+          lambda: 'return id(wifi_ag).state.rfind("Redmi", 0) == 0;'
+        then:
+          - http_request.post:
+              url: https://ntfy.sh/${ntfy_konu}
+              request_headers:
+                Title: "Aku dugumu telefona baglandi"
+                Tags: "battery"
+                Click: !lambda 'static std::string u; u = "http://" + id(wifi_ip).state; return u.c_str();'
+              body: !lambda 'return "Değerler için dokun: http://" + id(wifi_ip).state;'
+  ap:
+    ssid: "Aku-Dugumu Fallback Hotspot"
+    password: !secret yedek_ag_sifre
+
+captive_portal:
+
+http_request:
+  verify_ssl: true
+  timeout: 10s
+  watchdog_timeout: 15s
+
+# Kendi web sayfası: telefondan http://<ESP adresi> → tüm değerler (MQTT olmadan da)
+web_server:
+  port: 80
+  version: 3
+
+mqtt:
+  broker: 192.168.1.117
+  # Home Assistant kullanmıyoruz; açılışta 40+ tanıtım mesajı zayıf WiFi'de döngüyü kilitleyip
+  # watchdog yeniden başlatmasına yol açıyordu (2026-11-07, inci -90 dBm)
+  discovery: false
+  # Mesajları kuyruğa koyup arka planda gönder: zayıf hatta yayın ana döngüyü kilitlemesin (watchdog)
+  idf_send_async: true
+
+# Akü BMS (Daly uyumlu, Bluetooth adı JHB-501905011293)
+esp32_ble_tracker:
+  scan_parameters:
+    active: false
+
+ble_client:
+  - mac_address: "50:19:05:01:12:93"
+    id: bms_ble
+
+daly_bms_ble:
+  - ble_client_id: bms_ble
+    id: bms
+    password: 12345678
+    status_registers: 62
+    update_interval: 10s
+    response_timeout: 3s
+
+switch:
+  # Kapatılırsa telefon uygulaması aküye bağlanabilir (aynı anda tek bağlantı)
+  - platform: ble_client
+    ble_client_id: bms_ble
+    name: "BMS Baglanti"
+    id: bms_baglanti
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "IP Adresi"
+      id: wifi_ip
+    ssid:
+      name: "WiFi Agi"
+      id: wifi_ag
+  - platform: daly_bms_ble
+    daly_bms_ble_id: bms
+    battery_status:
+      name: "Aku Durum"
+    errors:
+      name: "Aku Hatalar"
+
+sensor:
+  - platform: daly_bms_ble
+    daly_bms_ble_id: bms
+    total_voltage:
+      name: "Aku Voltaj"
+    current:
+      name: "Aku Akim"
+    power:
+      name: "Aku Guc"
+    state_of_charge:
+      name: "Aku Doluluk"
+    capacity_remaining:
+      name: "Aku Kalan"
+    charging_cycles:
+      name: "Aku Dongu"
+    min_cell_voltage:
+      name: "Aku Min Hucre"
+    max_cell_voltage:
+      name: "Aku Max Hucre"
+    delta_cell_voltage:
+      name: "Aku Hucre Farki"
+    temperature_1:
+      name: "Aku Sicaklik 1"
+    temperature_2:
+      name: "Aku Sicaklik 2"
+    cell_voltage_1:
+      name: "Aku Hucre 1"
+    cell_voltage_2:
+      name: "Aku Hucre 2"
+    cell_voltage_3:
+      name: "Aku Hucre 3"
+    cell_voltage_4:
+      name: "Aku Hucre 4"
+  # BMS sinyal gücü (akünün yanında iyi olmalı; 1. ESP'de -97 dBm idi)
+  - platform: ble_client
+    type: rssi
+    ble_client_id: bms_ble
+    name: "BMS Sinyal"
+  - platform: wifi_signal
+    name: "WiFi Sinyal"
+    update_interval: 60s
+  - platform: uptime
+    name: "Calisma Suresi"
+
+binary_sensor:
+  - platform: daly_bms_ble
+    daly_bms_ble_id: bms
+    online_status:
+      name: "BMS Bagli"
+    charging:
+      name: "Aku Sarj MOS"
+    discharging:
+      name: "Aku Desarj MOS"
+    balancing:
+      name: "Aku Dengeleme"
