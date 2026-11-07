@@ -27,6 +27,10 @@ external_components:
 
 # Enable logging
 logger:
+  logs:
+    # MPU6050 saniyede 20 kez okunuyor: her okumayı kaydetmesin (MQTT'yi boğuyordu)
+    mpu6050: INFO
+    sensor: INFO
 
 # Enable Home Assistant API
 api:

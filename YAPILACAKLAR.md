@@ -44,6 +44,7 @@ Ayrı terminalde `ssh karavan@192.168.1.117` ile bağlanıp sırayla:
 - [x] Seri yuvaları aç (2026-11-06): TARGET (sağ) = ttyS0, SOURCE (sol) = ttyS1; açılışta otomatik açılıyor. Ayrıntı: mini_pc/BENIOKU.md
 - [x] ttyS0'daki giriş ekranı (getty) kalıcı kapatıldı (2026-11-06)
 - [x] WiFi kopması (2026-11-06): sürücü güç tasarrufu kapatıldı + WiFi bekçisi servisi kuruldu
+- [ ] **İç nem birkaç gün izlensin (2026-11-08):** MPU6050 20 Hz'e çıkınca BME280 nemi bir süre 'nan' verdi; kayıt seli kapatılıp ESP yeniden başlayınca düzeldi (%53). Tekrar olursa: MPU'yu 10 Hz'e indir ya da BME280'i ayrı I2C hattına al
 - [ ] Birkaç gün sonra WiFi bekçisinin kaydına bak (`/var/log/wifi-bekci.log`): kopma oldu mu, kaç sn'de geri geldi (Claude bakar)
 - [ ] **Seri yuva GND'sini doğrula:** mini PC KAPALIYKEN multimetre bip ayarında beyaz-yeşil ve kahverengi teller şasiyle (USB soketinin metali) bip veriyor mu
 - [x] Çift DHCP düzeltildi (2026-11-06): dhcpcd kapatıldı, mini PC evde sabit .117; yeniden başlatma testi geçti
