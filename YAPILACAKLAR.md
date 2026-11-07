@@ -53,6 +53,10 @@ Ayrı terminalde `ssh karavan@192.168.1.117` ile bağlanıp sırayla:
 - [x] Kulaklık + hoparlör otomatik geçiş (2026-11-06): jak takılınca ses jaktan (harici amfi), çıkınca dahili hoparlörden — PipeWire jak algılamasıyla kendiliğinden yapıyor, ayar gerekmedi
 - [x] Ön tuşlar (2026-11-06): yön+OK klavye tuşu; L/R = dahili PS/2 fare (GRUB i8042.nomux=1), kiosk.sh'de 8/9'a taşındı (tıklama yapmıyor). Panelde görev verilecek
 
+### Seviye ayarı (karavanda)
+- [ ] **Ayaklar arası mesafeyi ölç** (şu an varsayılan 400×200 cm): ön-arka = aynı taraftaki ön ve arka ayak, sol-sağ = öndeki iki ayak; ayak milinin merkezinden merkezine, cm. Claude MQTT'ye (karavan/ayar) girer ya da web panelinden girilir
+- [ ] Sensör kartı yerine takılınca: panelden **sensör yönü** (X oku öne/arkaya/sola/sağa) ve su terazisiyle düzledikten sonra **"düz kabul et"**
+
 ### Sonra
 - [ ] ESP'ye yeni yazılımı yükle (Claude yapabilir)
 - [ ] **2. ESP (aku-dugumu) karavanda akünün yanında (2026-11-07 takıldı):** BMS sinyali -60/-70 dBm, çalışıyor. AMA ev WiFi'si karavanda -88/-90 → veri panele gelmiyor ve ESP BMS'i tuttuğu için 1. ESP de okuyamıyor. Yapılacaklar: (1) balkona WiFi güçlendirici (hazır repeater önerildi; kullanıcının fikri ESP32-C5 köprü); (2) yazılım: WiFi/MQTT birkaç dk yoksa BMS'i bıraksın, gelince geri alsın (yüklemek için laptopla karavana git ya da USB); (3) WiFi çözülünce sensor-dugumu.yaml'dan BMS kısmını çıkar
