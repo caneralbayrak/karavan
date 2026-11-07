@@ -433,6 +433,9 @@ var aku={},akuZaman=0,akuUyari=0,bmsBagli=false,bmsBaglanti=true;
 var AKU_DUSUK=20,AKU_KRITIK=10;
 // Yedek: BMS % sayacı kayabiliyor; LiFePO4 4S voltajı eşik altında AKU_V_SURE ms kalırsa da uyar
 var AKU_V_DUSUK=12.9,AKU_V_KRITIK=12.6,AKU_V_SURE=120000,vAlt={1:0,2:0};
+// LiFePO4 0 °C altında şarj edilmez; 1 dk sürerse uyar, sürdükçe 15 dk'da bir
+var SOGUK_C=1,sogukBas=0,sogukSes=0;
+function sogukSarj(){var t=[aku.aku_sicaklik_1,aku.aku_sicaklik_2].filter(function(x){return x!==undefined&&!isNaN(x)});return t.length>0&&aku.aku_akim>0.3&&Math.min.apply(null,t)<=SOGUK_C}
 // 4 hücre çubuğu
 (function(){var h='';for(var i=1;i<=4;i++)h+='<div><div class="bar"><i id="hc'+i+'"></i></div><em id="hv'+i+'">–</em><span>'+i+'. hücre</span></div>';el('hucreler').innerHTML=h})();
 var bmsSinyal=null;
@@ -459,7 +462,8 @@ function akuGoster(){
  el('a_t').style.color=t1<5?'var(--mavi)':t1>40?'var(--turuncu)':'';
  var d={Idle:'boşta',Charging:'⚡ şarj oluyor',Discharging:'kullanılıyor',Offline:'bağlantı yok',Unknown:'bilinmiyor'}[a.durum]||a.durum||'';
  if(a.hatalar&&a.hatalar!=='Offline')d+=' ⚠ '+a.hatalar;
- el('a_d').textContent=d;el('a_d').style.color=a.durum==='Charging'?'var(--yesil)':'';
+ if(sogukSarj()){el('a_d').textContent='❄ soğukta şarj!';el('a_d').style.color='var(--kirmizi)'}
+ else{el('a_d').textContent=d;el('a_d').style.color=a.durum==='Charging'?'var(--yesil)':''}
  // hücreler: 2.9-3.6 V aralığı
  var hv=[1,2,3,4].map(function(i){return a['aku_hucre_'+i]}),dolu=hv.filter(function(v){return v!==undefined&&!isNaN(v)});
  var mn=Math.min.apply(null,dolu),mx=Math.max.apply(null,dolu);
@@ -488,6 +492,13 @@ function akuGoster(){
 }
 function akuSesKontrol(){
  var d=aku.aku_doluluk,v=aku.aku_voltaj,n=Date.now(),vs=0,ds=0;
+ if(sogukSarj()){
+  if(!sogukBas)sogukBas=n;
+  if(n-sogukBas>=60000&&n-sogukSes>=900000){soyle(['aku_soguk'],true);sogukSes=n;sekme('aku')}
+ }else{
+  var tt=[aku.aku_sicaklik_1,aku.aku_sicaklik_2].filter(function(x){return x!==undefined&&!isNaN(x)});
+  if(!tt.length||Math.min.apply(null,tt)>=4||!(aku.aku_akim>0.3))sogukBas=0;
+ }
  var dv=d!==undefined&&!isNaN(d),vv=v!==undefined&&!isNaN(v);
  [[1,AKU_V_DUSUK],[2,AKU_V_KRITIK]].forEach(function(e){
   if(vv&&v<e[1]){if(!vAlt[e[0]])vAlt[e[0]]=n;if(n-vAlt[e[0]]>=AKU_V_SURE)vs=Math.max(vs,e[0])}else vAlt[e[0]]=0});
@@ -685,7 +696,7 @@ function mesaj(t,m){
   else if(p[2]==='bms_baglanti')bmsBaglanti=(s==='ON');
   else if(p[2]==='aku_durum')aku.durum=s;
   else if(p[2]==='aku_hatalar')aku.hatalar=s;
-  else if(p[1]==='sensor'){var av=parseFloat(s);if(isNaN(av))return;aku[p[2]]=av;akuZaman=Date.now();if(p[2]==='aku_doluluk'||p[2]==='aku_voltaj')akuSesKontrol()}
+  else if(p[1]==='sensor'){var av=parseFloat(s);if(isNaN(av))return;aku[p[2]]=av;akuZaman=Date.now();if(/^aku_(doluluk|voltaj|akim|sicaklik_)/.test(p[2]))akuSesKontrol()}
   else return;
   akuGoster();
   return;

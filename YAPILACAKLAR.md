@@ -46,7 +46,7 @@ Ayrı terminalde `ssh karavan@192.168.1.117` ile bağlanıp sırayla:
 - [x] ttyS0'daki giriş ekranı (getty) kalıcı kapatıldı (2026-11-06)
 - [x] WiFi kopması (2026-11-06): sürücü güç tasarrufu kapatıldı + WiFi bekçisi servisi kuruldu
 - [ ] **İç nem birkaç gün izlensin (2026-11-08):** MPU6050 20 Hz'e çıkınca BME280 nemi bir süre 'nan' verdi; kayıt seli kapatılıp ESP yeniden başlayınca düzeldi (%53). Tekrar olursa: MPU'yu 10 Hz'e indir ya da BME280'i ayrı I2C hattına al
-- [ ] Birkaç gün sonra WiFi bekçisinin kaydına bak (`/var/log/wifi-bekci.log`): kopma oldu mu, kaç sn'de geri geldi (Claude bakar)
+- [x] WiFi bekçisi kaydı incelendi (2026-11-08): kopmalar sadece 2026-11-06 öğleden sonra (çift DHCP düzeltmesinden önce); düzeltmeden sonra gerçek kopma yok (11-07 20:25 kaydı açılış anı). WiFi sağlam
 - [ ] **Seri yuva GND'sini doğrula:** mini PC KAPALIYKEN multimetre bip ayarında beyaz-yeşil ve kahverengi teller şasiyle (USB soketinin metali) bip veriyor mu
 - [x] Çift DHCP düzeltildi (2026-11-06): dhcpcd kapatıldı, mini PC evde sabit .117; yeniden başlatma testi geçti
 - [ ] (Acil değil) Kart yuvaları testi: arkadaki SD yuvasına kart takıp okunuyor mu bak; öndeki SIM yuvası (OmniKey okuyucu, modem DEĞİL) için pcscd + libccid + pcsc-tools kurup eski bir SIM'le dene
@@ -154,7 +154,8 @@ Ayrı terminalde `ssh karavan@192.168.1.117` ile bağlanıp sırayla:
     5. **Dış nem (SHT31 / SHT40):** dış çiy noktası, sis ihtimali, hissedilen sıcaklık (güneş siperinde)
 - [ ] **Fırtına uyarısı:** basınç 3 saatte >3 hPa düşerse uyarı (yükseklik değişimi GPS ile ayıklanır)
 - [ ] **Panel gölgede mi? uyarısı (2026-11-07):** paneller tavanda DÜZ → karavanın yönü önemsiz, sadece gölge önemli. GPS konum + tarih/saat → güneş yüksekliği → beklenen panel gücü (internet varsa bulut tahmini de); BMS'den gelen gerçek şarj akımıyla karşılaştır; hava açıkken çok düşükse "Paneller gölgede olabilir" uyarısı. Panelde gün doğumu/batımı ve öğlen güneş yüksekliği. **BMS verisine bağlı → önce 2. ESP**
-- [ ] **Akü donma koruması:** akü 0 °C altındayken şarj olursa uyarı (BMS sıcaklığı)
+- [x] **Akü donma koruması (2026-11-08):** paneller (yerel + web) akü ≤1 °C ve şarj >0,3 A 1 dk sürerse sesli uyarı ("aku_soguk"), 15 dk'da bir tekrar, Akü sekmesinde "❄ soğukta şarj!". 2. ESP'ye telefon bildirimi yazıldı (aku-dugumu.yaml, 30 dk'da bir) — **montajda yüklenecek**
+- [ ] **BMS ayarı (karavanda, Smart BMS uygulaması):** "Charge low temperature" uyarı **+2 °C**, koruma **0 °C** yap. Şu an -10 / -20 °C → LiFePO4'ü donmuşken şarj etmeye izin veriyor (lityum kaplaması, kalıcı hasar). Şifre genelde 123456
 - [ ] **Su donma uyarısı:** su/hortum sıcaklığı 0 °C'ye yaklaşınca uyarı (+ istenirse pompayı kapat)
 - [x] **GPS alarmı:** alarm kuruluyken 50 m+ yer değiştirirse ntfy bildirimi (konum linkiyle) — kod yazıldı 2026-11-03
 - [x] Panellerde (web + yerel) GPS konum/uydu gösterimi (2026-11-04, Genel sekmesinde Konum kartı)

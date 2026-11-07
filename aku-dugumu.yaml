@@ -133,6 +133,7 @@ sensor:
       name: "Aku Voltaj"
     current:
       name: "Aku Akim"
+      id: aku_akim
     power:
       name: "Aku Guc"
     state_of_charge:
@@ -149,8 +150,10 @@ sensor:
       name: "Aku Hucre Farki"
     temperature_1:
       name: "Aku Sicaklik 1"
+      id: aku_t1
     temperature_2:
       name: "Aku Sicaklik 2"
+      id: aku_t2
     cell_voltage_1:
       name: "Aku Hucre 1"
     cell_voltage_2:
@@ -181,3 +184,45 @@ binary_sensor:
       name: "Aku Desarj MOS"
     balancing:
       name: "Aku Dengeleme"
+
+# LiFePO4 0 °C altında şarj edilmez (lityum kaplaması). BMS'in kendi koruması -20 °C'ye ayarlıydı
+# (2026-11-08; uygulamadan 0 °C yapılmalı). Yedek: soğukta şarj 1 dk sürerse telefona bildir, 30 dk'da bir tekrar.
+globals:
+  - id: soguk_sn
+    type: int
+    initial_value: '0'
+  - id: soguk_son
+    type: uint32_t
+    initial_value: '0'
+
+interval:
+  - interval: 10s
+    then:
+      - lambda: |-
+          float t = NAN;
+          if (!isnan(id(aku_t1).state)) t = id(aku_t1).state;
+          if (!isnan(id(aku_t2).state)) t = isnan(t) ? id(aku_t2).state : std::min(t, id(aku_t2).state);
+          bool soguk = !isnan(t) && !isnan(id(aku_akim).state) && id(aku_akim).state > 0.3f && t <= 1.0f;
+          id(soguk_sn) = soguk ? id(soguk_sn) + 10 : 0;
+          uint32_t simdi = esphome::millis();
+          if (id(soguk_sn) >= 60 && (id(soguk_son) == 0 || simdi - id(soguk_son) > 1800000)) {
+            id(soguk_son) = simdi;
+            ESP_LOGW("aku", "Soğukta şarj: %.1f °C, %.1f A", t, id(aku_akim).state);
+            id(soguk_uyar).execute();
+          }
+
+script:
+  - id: soguk_uyar
+    mode: single
+    then:
+      - http_request.post:
+          url: https://ntfy.sh/${ntfy_konu}
+          request_headers:
+            Title: "Aku donma noktasinda sarj oluyor!"
+            Priority: "high"
+            Tags: "snowflake,battery"
+          body: !lambda |-
+            char b[120];
+            float t = std::min(isnan(id(aku_t1).state) ? 99.0f : id(aku_t1).state, isnan(id(aku_t2).state) ? 99.0f : id(aku_t2).state);
+            snprintf(b, sizeof(b), "Akü %.0f °C, şarj akımı %.1f A. 0 °C altında şarj aküye zarar verir; şarjı durdurun.", t, id(aku_akim).state);
+            return std::string(b);

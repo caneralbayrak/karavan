@@ -40,6 +40,8 @@ AKU_DUSUK, AKU_KRITIK = 20, 10
 # Yedek: BMS'in % sayacı kayabiliyor (2026-11-07: %98 dedi, gerçekte ~%30). LiFePO4 4S voltajı
 # bu eşiklerin altında AKU_V_SURE saniye kalırsa da uyar (Webasto bujisi gibi anlık düşüşleri sayma)
 AKU_V_DUSUK, AKU_V_KRITIK, AKU_V_SURE = 12.9, 12.6, 120
+# LiFePO4 0 °C altında şarj edilmez (lityum kaplaması). BMS'te koruma -20 °C'ye ayarlıydı (2026-11-08)
+SOGUK_SARJ_C, SOGUK_SURE, SOGUK_TEKRAR = 1.0, 60, 900
 KARART_SN = 300    # 5 dk dokunulmazsa ekran kararır (akü tasarrufu)
 
 # Renkler (web paneliyle aynı)
@@ -320,6 +322,7 @@ class Panel:
         self.tasima, self.mola, self.durdu_soru = False, False, False
         self.aku, self.aku_zaman, self.aku_uyari = {}, 0, 0
         self.v_alt = {1: None, 2: None}   # voltaj eşiğin altına ne zaman indi
+        self.soguk_bas, self.soguk_ses = None, -1e9   # soğukta şarj ne zaman başladı / son uyarı
         self.bms_bagli, self.bms_baglanti, self.bms_sinyal = False, True, None
         self.su, self.su_zaman, self.su_alt, self.su_dolum, self.pompa = {}, 0, None, 0, None
         self.su_kal = '–'
@@ -811,7 +814,7 @@ class Panel:
                     return
                 self.aku[ad] = v
                 self.aku_zaman = time.time()
-                if ad in ('aku_doluluk', 'aku_voltaj'):
+                if ad in ('aku_doluluk', 'aku_voltaj', 'aku_akim', 'aku_sicaklik_1', 'aku_sicaklik_2'):
                     self.aku_ses_kontrol()
             else:
                 return
@@ -1056,7 +1059,10 @@ class Panel:
         self.aku_s.config(text=s)
         d = {'Idle': 'boşta', 'Charging': '⚡ şarj oluyor', 'Discharging': 'kullanılıyor', 'Offline': 'bağlantı yok',
              'Unknown': 'bilinmiyor'}.get(a.get('durum'), a.get('durum') or '')
-        self.aku_dl.config(text=d, fg=YESIL if a.get('durum') == 'Charging' else SOLUK)
+        if self.soguk_sarj():
+            self.aku_dl.config(text='❄ soğukta şarj!', fg=KIRMIZI)
+        else:
+            self.aku_dl.config(text=d, fg=YESIL if a.get('durum') == 'Charging' else SOLUK)
         self.a['v'].config(text=f('aku_voltaj', 2, ' V'), fg=ESKI if eski else YAZI)
         self.a['a'].config(text=('+' if (A or 0) > 0.05 else '') + f('aku_akim', 1, ' A'),
                            fg=ESKI if eski else YESIL if (A or 0) > 0.3 else YAZI)
@@ -1124,8 +1130,26 @@ class Panel:
         else:
             self.bas_e.config(text='► sabit', fg=SOLUK)
 
+    def soguk_sarj(self):
+        """Akü donma noktasında şarj oluyor mu (en soğuk sensör + şarj akımı)."""
+        t = [x for x in (self.aku.get('aku_sicaklik_1'), self.aku.get('aku_sicaklik_2')) if x is not None]
+        A = self.aku.get('aku_akim')
+        return bool(t) and A is not None and A > 0.3 and min(t) <= SOGUK_SARJ_C
+
     def aku_ses_kontrol(self):
         d, v, simdi = self.aku.get('aku_doluluk'), self.aku.get('aku_voltaj'), time.time()
+        # soğukta şarj: 1 dk sürerse uyar, sürdükçe 15 dk'da bir tekrar
+        if self.soguk_sarj():
+            self.soguk_bas = self.soguk_bas or simdi
+            if simdi - self.soguk_bas >= SOGUK_SURE and simdi - self.soguk_ses >= SOGUK_TEKRAR:
+                self.ses.soyle(['aku_soguk'], True)
+                self.soguk_ses = simdi
+                self.sekme('aku')
+                self.uyan()
+        else:
+            t = [x for x in (self.aku.get('aku_sicaklik_1'), self.aku.get('aku_sicaklik_2')) if x is not None]
+            if not t or min(t) >= 4 or (self.aku.get('aku_akim') or 0) <= 0.3:
+                self.soguk_bas = None
         for sv, esik in ((1, AKU_V_DUSUK), (2, AKU_V_KRITIK)):
             if v is not None and v < esik:
                 self.v_alt[sv] = self.v_alt[sv] or simdi

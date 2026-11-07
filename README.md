@@ -4,6 +4,8 @@
 
 ![Mini PC'deki panelin ana sayfası](tasarim/ekran_genel.png)
 
+📄 Kısa tanıtım (2 sayfa, ekran görüntüleriyle): [Akilli_Karavan.pdf](tasarim/tanitim/Akilli_Karavan.pdf)
+
 Çekme karavan için ev yapımı akıllı sistem: ESP32 sensör düğümü (ESPHome) + MQTT ile çalışan dokunmatik panel.
 Panel karavandaki küçük bir Linux mini PC'de çalışıyor, uyarıları Türkçe sesli veriyor, önemli olaylarda telefona (ntfy) bildirim gönderiyor.
 
