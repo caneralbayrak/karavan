@@ -48,6 +48,9 @@ YESIL, TURUNCU, MAVI, SARI, MOR = '#56d364', '#f0883e', '#79c0ff', '#e3b341', '#
 KIRMIZI, UYARI, SU_MAVI = '#ff7b72', '#f0b33a', '#388bfd'
 DUGME, DUGME_BAS, BEKLE, SECILI = '#262e3a', '#3a4556', '#2a4a6a', '#1f6feb'
 KIRMIZI_DUGME, YESIL_DUGME, TURUNCU_DUGME = '#b62324', '#1a7f37', '#9a5b00'
+# Yumuşak düğmeler (Genel): koyu renkli zemin + açık renkli yazı; parlak dolgu göz almasın
+Y_KIRMIZI, Y_YESIL, Y_MAVI, Y_TURUNCU = '#4a1c1f', '#183824', '#183252', '#46310f'
+Y_YAZI = {Y_KIRMIZI: '#ffaba5', Y_YESIL: '#7ee2a0', Y_MAVI: '#a5cdff', Y_TURUNCU: '#ffcf73'}
 KAYMA_BG, HAREKET_BG, ALARM_BG = '#4a3000', '#3a1416', '#8b1a1a'
 UST_BG = '#161b22'
 SIMGE_DIR = os.path.join(BURASI, 'simgeler')
@@ -167,7 +170,7 @@ class Dugme(tk.Label):
     hepsi = []
 
     def __init__(self, ust, yazi, komut, boy=13, renk=DUGME, **kw):
-        super().__init__(ust, text=yazi, bg=renk, fg=YAZI, font=F(boy), **kw)
+        super().__init__(ust, text=yazi, bg=renk, fg=Y_YAZI.get(renk, YAZI), font=F(boy), **kw)
         self.komut, self.renk = komut, renk
         self.bekliyor, self._z = False, None
         Dugme.hepsi.append(self)
@@ -177,7 +180,7 @@ class Dugme(tk.Label):
     def renk_ayarla(self, r):
         self.renk = r
         if not self.bekliyor:
-            self.config(bg=r)
+            self.config(bg=r, fg=Y_YAZI.get(r, YAZI))
 
     def _bas(self, e):
         if not self.bekliyor:
@@ -220,7 +223,7 @@ class Dugme(tk.Label):
         if self.bekliyor:
             return False
         self.bekliyor = True
-        self.config(bg=BEKLE, text=yazi)
+        self.config(bg=BEKLE, fg=YAZI, text=yazi)
         self._z = self.after(5000, lambda: (self.bitti(), geri_al()))
         return True
 
@@ -230,7 +233,7 @@ class Dugme(tk.Label):
             self._z = None
         if self.bekliyor:
             self.bekliyor = False
-            self.config(bg=self.renk)
+            self.config(bg=self.renk, fg=Y_YAZI.get(self.renk, YAZI))
 
 
 _simgeler = {}
@@ -317,7 +320,7 @@ class Panel:
         self.tasima, self.mola, self.durdu_soru = False, False, False
         self.aku, self.aku_zaman, self.aku_uyari = {}, 0, 0
         self.v_alt = {1: None, 2: None}   # voltaj eşiğin altına ne zaman indi
-        self.bms_bagli, self.bms_baglanti = False, True
+        self.bms_bagli, self.bms_baglanti, self.bms_sinyal = False, True, None
         self.su, self.su_zaman, self.su_alt, self.su_dolum, self.pompa = {}, 0, None, 0, None
         self.su_kal = '–'
         self.gps, self.gps_zaman = {}, 0
@@ -521,14 +524,14 @@ class Panel:
         self.hr_a.place(x=16, y=110)
         self.al_f, _ = kart(s, 271, 106, 255, 212, 'Alarm', 'alarm')
         self.al_l = deger(self.al_f, 14, 44, boy=26)
-        self.ab = Dugme(self.al_f, 'Alarmı kur', self.alarm_dugme, boy=15, renk=KIRMIZI_DUGME)
+        self.ab = Dugme(self.al_f, 'Alarmı kur', self.alarm_dugme, boy=15, renk=Y_KIRMIZI)
         self.ab.place(x=14, y=144, width=227, height=54)
         self.konak_f, _ = kart(s, 534, 106, 258, 212, 'Mod', 'konak')
         self.konak_l = deger(self.konak_f, 14, 40, boy=24)
-        self.kb = Dugme(self.konak_f, 'Konaklamaya hazır', self.konak_dugme, boy=15, renk=YESIL_DUGME)
+        self.kb = Dugme(self.konak_f, 'Konaklamaya hazır', self.konak_dugme, boy=15, renk=Y_YESIL)
         self.kb.place(x=14, y=144, width=230, height=54)
         # üst düğme: Yola çıkıyorum / Mola / Yola devam (kayma varken yerine "yeni konumu kaydet")
-        self.mb = Dugme(self.konak_f, 'Yola çıkıyorum', self.yol_dugme, boy=14, renk=SECILI)
+        self.mb = Dugme(self.konak_f, 'Yola çıkıyorum', self.yol_dugme, boy=14, renk=Y_MAVI)
         self.kk = Dugme(self.konak_f, 'Kontrol ettim, yeni\nkonumu kaydet', self.konak_yeni, boy=13)
         self.kk_yer = dict(x=14, y=86, width=230, height=52)
         # alt şerit: akü, su, konum özeti
@@ -557,71 +560,145 @@ class Panel:
 
     # ---------------- Akü
     def _aku(self, s):
-        f, self.aku_b = kart(s, 8, 6, 784, 260, 'Akü')
-        self.soc = deger(f, 14, 30, boy=32)
-        self.bar = tk.Canvas(f, width=160, height=14, bg='#26303c', highlightthickness=0)
-        self.bar.place(x=16, y=100)
-        self.bar_r = self.bar.create_rectangle(0, 0, 0, 14, fill=YESIL, width=0)
-        self.a = {}
-        alanlar = (('v', 'Voltaj'), ('a', 'Akım'), ('w', 'Güç'), ('k', 'Kalan'),
-                   ('s', 'Süre'), ('h', 'Hücreler'), ('t', 'Sıcaklık'), ('d', 'Durum'))
-        for i, (k, bas) in enumerate(alanlar):
-            self.a[k] = kucuk_bilgi(f, 200 + (i % 4) * 145, 24 + (i // 4) * 62, bas, w=140)
-        self.bb = Dugme(f, "Telefon uygulaması için Bluetooth'u bırak", self.bt_dugme)
-        self.bb.place(x=200, y=160, width=570, height=50)
+        # büyük doluluk kartı
+        f, self.aku_b = kart(s, 8, 6, 380, 200, 'Akü', 'aku', serit=YESIL)
+        self.aku_f = f
+        self.soc = deger(f, 16, 34, boy=46)
+        self.aku_dl = tk.Label(f, text='', bg=KART, fg=SOLUK, font=F(13), anchor='e')
+        self.aku_dl.place(x=180, y=56, width=184)
+        self.bar = tk.Canvas(f, width=350, height=26, bg=KART, highlightthickness=0)
+        self.bar.place(x=14, y=112)
+        yuvarlak(self.bar, 0, 0, 349, 25, 12, fill='#26303c', width=0)
+        self.bar_r = yuvarlak(self.bar, 0, 0, 0, 25, 12, fill=YESIL, width=0)
+        for i in (1, 2, 3):   # %25'lik çizgiler
+            self.bar.create_line(350 * i // 4, 4, 350 * i // 4, 22, fill='#0d1117', width=2)
+        self.aku_k = tk.Label(f, text='', bg=KART, fg=YAZI, font=F(13), anchor='w')
+        self.aku_k.place(x=16, y=148)
+        self.aku_s = tk.Label(f, text='', bg=KART, fg=SOLUK, font=F(12), anchor='e')
+        self.aku_s.place(x=180, y=148, width=184)
+        # dört ölçüm kartı
+        self.a, self.a_kart = {}, {}
+        for i, (k, bas, sm, sr) in enumerate((('v', 'Voltaj', 'volt', SARI), ('a', 'Akım', 'akim', MAVI),
+                                              ('w', 'Güç', 'guc', TURUNCU), ('t', 'Sıcaklık', 'ic', YESIL))):
+            kf, _ = kart(s, 396 + (i % 2) * 200, 6 + (i // 2) * 104, 196, 96, bas, sm, serit=sr)
+            self.a[k] = deger(kf, 14, 40, boy=22)
+            self.a_kart[k] = kf
+        # hücreler
+        f, _ = kart(s, 8, 214, 520, 128, 'Hücreler', 'hucre')
+        self.hc = tk.Canvas(f, width=496, height=92, bg=KART, highlightthickness=0)
+        self.hc.place(x=12, y=32)
+        self.hucre = []
+        for i in range(4):
+            x = i * 124
+            yuvarlak(self.hc, x, 0, x + 112, 26, 8, fill='#26303c', width=0)
+            r = yuvarlak(self.hc, x, 0, x, 26, 8, fill=YESIL, width=0)
+            t = self.hc.create_text(x + 56, 46, text='–', fill=YAZI, font=F(13, True))
+            self.hc.create_text(x + 56, 72, text='%d. hücre' % (i + 1), fill=SOLUK, font=F(9))
+            self.hucre.append((r, t, x))
+        self.hc_fark = tk.Label(f, text='', bg=KART, fg=SOLUK, font=F(11), anchor='e')
+        self.hc_fark.place(x=300, y=8, width=206)
+        # BMS bilgisi
+        f, _ = kart(s, 536, 214, 256, 128, 'BMS', 'bms')
+        self.bms_l = tk.Label(f, text='', bg=KART, fg=YAZI, font=F(12), anchor='nw', justify='left')
+        self.bms_l.place(x=14, y=36)
+        self.bb = Dugme(s, "Telefon uygulaması için Bluetooth'u bırak", self.bt_dugme, boy=14)
+        self.bb.place(x=8, y=350, width=784, height=58)
 
     # ---------------- Su
     def _su(self, s):
-        self.su_f, _ = kart(s, 8, 6, 784, 330, 'Temiz su')
+        self.su_f, _ = kart(s, 8, 6, 250, 404, 'Temiz su', 'su', serit=SU_MAVI)
         f = self.su_f
-        self.tank = tk.Canvas(f, width=74, height=114, bg=KART, highlightthickness=0)
-        self.tank.place(x=14, y=30)
-        self.tank.create_rectangle(1, 1, 73, 113, outline='#3a4556', width=2)
-        self.tank_r = self.tank.create_rectangle(3, 112, 71, 112, fill=SU_MAVI, width=0)
-        self.sul = deger(f, 110, 26, boy=28)
-        self.s_a = kucuk_bilgi(f, 110, 86, 'Akış')
-        self.s_d = kucuk_bilgi(f, 260, 86, 'Dolduruldu')
-        self.s_p = kucuk_bilgi(f, 410, 86, 'Pompa')
-        self.sdb = Dugme(f, 'Depoyu doldurdum', self.depo_dolu)
-        self.sdb.place(x=110, y=150, width=325, height=52)
-        self.spb = Dugme(f, 'Pompayı aç', self.pompa_dugme)
-        self.spb.place(x=445, y=150, width=325, height=52)
-        self.s_k = tk.Label(f, text='', bg=KART, fg=SOLUK, font=F(11), anchor='w', justify='left', wraplength=660)
-        self.s_k.place(x=110, y=212)
-        Dugme(f, 'Kalibrasyon kaydını sıfırla', self.kal_sifirla, boy=13).place(x=110, y=266, width=325, height=46)
+        self.tank = tk.Canvas(f, width=226, height=352, bg=KART, highlightthickness=0)
+        self.tank.place(x=12, y=40)
+        self.TX0, self.TY0, self.TX1, self.TY1 = 48, 6, 178, 340
+        yuvarlak(self.tank, self.TX0, self.TY0, self.TX1, self.TY1, 18, fill='#141b24', outline='#3a4556', width=3)
+        self.tank_r = yuvarlak(self.tank, self.TX0 + 4, self.TY1 - 4, self.TX1 - 4, self.TY1 - 4, 14, fill=SU_MAVI, width=0)
+        for yz in (25, 50, 75):
+            y = self.TY1 - (self.TY1 - self.TY0) * yz / 100
+            self.tank.create_line(self.TX1 - 22, y, self.TX1 - 4, y, fill='#5a6573', width=2)
+            self.tank.create_text(self.TX1 + 8, y, text='%d' % yz, fill=SOLUK, font=F(9), anchor='w')
+        self.tank_y = self.tank.create_text((self.TX0 + self.TX1) // 2, (self.TY0 + self.TY1) // 2, text='', fill=YAZI, font=F(20, True))
+        # büyük değer
+        kf, _ = kart(s, 266, 6, 526, 96, 'Kalan su', None)
+        self.sul = deger(kf, 14, 30, boy=34)
+        self.su_dl = tk.Label(kf, text='', bg=KART, fg=SOLUK, font=F(13), anchor='e')
+        self.su_dl.place(x=250, y=44, width=260)
+        # üç küçük kart
+        self.s_kart = {}
+        for i, (k, bas, sm) in enumerate((('a', 'Akış', 'akis'), ('d', 'Dolduruldu', 'takvim'), ('p', 'Pompa', 'pompa'))):
+            kf, _ = kart(s, 266 + i * 178, 110, 170, 86, bas, sm, serit=KENAR if k == 'p' else None)
+            setattr(self, 's_' + k, deger(kf, 14, 38, boy=17))
+            self.s_kart[k] = kf
+        self.sdb = Dugme(s, 'Depoyu doldurdum', self.depo_dolu, boy=15, renk=YESIL_DUGME)
+        self.sdb.place(x=266, y=204, width=259, height=62)
+        self.spb = Dugme(s, 'Pompayı aç', self.pompa_dugme, boy=15)
+        self.spb.place(x=533, y=204, width=259, height=62)
+        kf, _ = kart(s, 266, 274, 526, 136, 'Kalibrasyon', 'ayar')
+        self.s_k = tk.Label(kf, text='', bg=KART, fg=SOLUK, font=F(11), anchor='nw', justify='left', wraplength=500)
+        self.s_k.place(x=14, y=34)
+        Dugme(kf, 'Kalibrasyon kaydını sıfırla', self.kal_sifirla, boy=12).place(x=14, y=86, width=260, height=40)
 
     # ---------------- Seviye
     def _seviye(self, s):
-        f, _ = kart(s, 8, 4, 784, 408, 'Seviye')
+        f, _ = kart(s, 8, 6, 250, 404, 'Karavan (üstten)', 'karavan')
         self.sev_f = f
-        c = tk.Canvas(f, width=236, height=370, bg=KART, highlightthickness=0)
-        c.place(x=8, y=30)
-        c.create_text(118, 8, text='ÖN', fill=SOLUK, font=F(10))
-        c.create_rectangle(8, 20, 228, 362, outline='#3a4556', width=2)
+        c = tk.Canvas(f, width=232, height=362, bg=KART, highlightthickness=0)
+        c.place(x=9, y=36)
+        # çeki demiri + kriko tekeri
+        c.create_line(116, 6, 92, 44, fill='#6b7685', width=4, capstyle='round')
+        c.create_line(116, 6, 140, 44, fill='#6b7685', width=4, capstyle='round')
+        c.create_oval(108, 0, 124, 14, fill='#2a3340', outline='#8b96a5', width=2)
+        c.create_oval(98, 22, 110, 34, fill='#11161d', outline='#6b7685', width=2)
+        # tekerlekler (aks ortada)
+        for x in (8, 210):
+            yuvarlak(c, x, 176, x + 14, 236, 5, fill='#0b0f14', outline='#3a4556', width=2)
+            for yy in (186, 196, 206, 216, 226):
+                c.create_line(x + 3, yy, x + 11, yy, fill='#2a3340')
+        # gövde: dış çerçeve + iç zemin
+        yuvarlak(c, 20, 40, 212, 358, 26, fill='#1b2431', outline='#4a5668', width=3)
+        yuvarlak(c, 28, 48, 204, 350, 20, fill='#151d28', outline='', width=0)
+        # ön ve arka cam
+        yuvarlak(c, 64, 44, 168, 52, 4, fill='#2b4a6e', width=0)
+        yuvarlak(c, 74, 346, 158, 354, 4, fill='#4a2b2b', width=0)
+        c.create_text(116, 62, text='ÖN', fill='#6b7685', font=F(9, True))
         self.kose = {}
-        yer = {'sol_on': (14, 26), 'sag_on': (136, 26), 'sol_arka': (14, 302), 'sag_arka': (136, 302)}
+        yer = {'sol_on': (30, 72), 'sag_on': (120, 72), 'sol_arka': (30, 278), 'sag_arka': (120, 278)}
         adlar = {'sol_on': 'Sol ön', 'sag_on': 'Sağ ön', 'sol_arka': 'Sol arka', 'sag_arka': 'Sağ arka'}
         for k, (x, y) in yer.items():
-            r = c.create_rectangle(x, y, x + 86, y + 54, fill='#222a35', outline='#222a35', width=3)
-            c.create_text(x + 43, y + 13, text=adlar[k], fill='#aaa', font=F(10))
-            t = c.create_text(x + 43, y + 36, text='–', fill=YESIL, font=F(12, True))
+            r = yuvarlak(c, x, y, x + 82, y + 62, 12, fill='#222a35', outline='#222a35', width=3)
+            n = c.create_text(x + 41, y + 15, text=adlar[k], fill='#aab4c0', font=F(10))
+            t = c.create_text(x + 41, y + 42, text='–', fill=YESIL, font=F(14, True))
             self.kose[k] = (r, t)
-        self.bx, self.by = 118, 191
-        c.create_oval(self.bx - 55, self.by - 55, self.bx + 55, self.by + 55, outline='#3a4556', width=2)
-        self.dot = c.create_oval(self.bx - 9, self.by - 9, self.bx + 9, self.by + 9, fill=YESIL, width=0)
+        # su terazisi: kırmızı / sarı / yeşil halkalar
+        self.bx, self.by = 116, 206
+        c.create_oval(self.bx - 62, self.by - 62, self.bx + 62, self.by + 62, fill='#2a1517', outline='#5a2a2c', width=2)
+        c.create_oval(self.bx - 44, self.by - 44, self.bx + 44, self.by + 44, fill='#2a2412', outline='#5a4a1c', width=2)
+        c.create_oval(self.bx - 22, self.by - 22, self.bx + 22, self.by + 22, fill='#12301d', outline='#2f8a4f', width=2)
+        c.create_line(self.bx - 62, self.by, self.bx + 62, self.by, fill='#3a4556', dash=(3, 3))
+        c.create_line(self.bx, self.by - 62, self.bx, self.by + 62, fill='#3a4556', dash=(3, 3))
+        for d, yz in ((22, '0,6°'), (44, '2,5°')):
+            c.create_text(self.bx + 14, self.by - d + 7, text=yz, fill='#8b96a5', font=F(7), anchor='w')
+        self.dot_g = c.create_oval(self.bx - 15, self.by - 15, self.bx + 15, self.by + 15, fill='', outline=YESIL, width=2)
+        self.dot = c.create_oval(self.bx - 11, self.by - 11, self.bx + 11, self.by + 11, fill=YESIL, outline='#0d1117', width=2)
+        self.dot_p = c.create_oval(self.bx - 6, self.by - 7, self.bx - 1, self.by - 3, fill='#ffffff', width=0)
+        self.nabiz, self.nabiz_k = False, None
+        self.kok.after(600, self._sev_nabiz)
         self.sev_c = c
-        self.talimat = tk.Label(f, text='–', bg=KART, fg=YAZI, font=F(16, True), anchor='w', justify='left', wraplength=520)
-        self.talimat.place(x=258, y=30)
-        self.egimler = tk.Label(f, text='', bg=KART, fg=SOLUK, font=F(12), anchor='w', justify='left', wraplength=520)
-        self.egimler.place(x=258, y=100)
-        self.rb = Dugme(f, 'Sesli seviye ayarını başlat', lambda: self.rehber_ayarla(not self.rehber))
-        self.rb.place(x=258, y=150, width=514, height=54)
-        self.yb = Dugme(f, '', self.yontem_dugme, boy=14)
-        self.yb.place(x=258, y=214, width=514, height=48)
-        self.dk = Dugme(f, 'Bu konumu düz kabul et (sıfırla)', self.duz_kabul, boy=14)
-        self.dk.place(x=258, y=272, width=514, height=48)
-        self.olcu = tk.Label(f, text='', bg=KART, fg=SOLUK, font=F(10), anchor='w', justify='left', wraplength=514)
-        self.olcu.place(x=258, y=330)
+        # talimat
+        self.tal_f, _ = kart(s, 266, 6, 526, 112, 'Ne yapmalı', 'rehber', serit=YESIL)
+        self.talimat = tk.Label(self.tal_f, text='–', bg=KART, fg=YAZI, font=F(19, True), anchor='w', justify='left', wraplength=490)
+        self.talimat.place(x=16, y=34)
+        self.egimler = tk.Label(self.tal_f, text='', bg=KART, fg=SOLUK, font=F(11), anchor='w', justify='left', wraplength=490)
+        self.egimler.place(x=16, y=78)
+        self.rb = Dugme(s, 'Sesli seviye ayarını başlat', lambda: self.rehber_ayarla(not self.rehber), boy=16, renk=SECILI)
+        self.rb.place(x=266, y=126, width=526, height=66)
+        self.yb = Dugme(s, '', self.yontem_dugme, boy=13)
+        self.yb.place(x=266, y=200, width=526, height=52)
+        self.dk = Dugme(s, 'Bu konumu düz kabul et (sıfırla)', self.duz_kabul, boy=13)
+        self.dk.place(x=266, y=260, width=526, height=52)
+        kf, _ = kart(s, 266, 320, 526, 90, 'Ölçüler', 'ayar')
+        self.olcu = tk.Label(kf, text='', bg=KART, fg=SOLUK, font=F(11), anchor='nw', justify='left', wraplength=500)
+        self.olcu.place(x=14, y=34)
         self.ayar_goster()
 
     # ================================================================ MQTT
@@ -715,6 +792,10 @@ class Panel:
             if self.aktif == 'sev' or self.rehber:
                 self.seviye_goster()
             return
+        if ad == 'bms_sinyal':
+            self.bms_sinyal = sayi(s)
+            self.aku_goster()
+            return
         if ad.startswith('aku_') or ad in ('bms_bagli', 'bms_baglanti'):
             if ad == 'bms_bagli':
                 self.bms_bagli = (s == 'ON')
@@ -793,7 +874,7 @@ class Panel:
         r = {'kapali': SOLUK, 'bekliyor': SARI, 'kurulu': TURUNCU, 'caliyor': '#fff'}
         self.al_l.config(text=y[self.al_durum], fg=r[self.al_durum])
         self.ab.config(text='Alarmı kur' if self.al_durum == 'kapali' else 'Alarmı kapat')
-        self.ab.renk_ayarla(KIRMIZI_DUGME if self.al_durum == 'kapali' else DUGME)
+        self.ab.renk_ayarla(Y_KIRMIZI if self.al_durum == 'kapali' else DUGME)
         if self.al_durum != 'caliyor':
             self._al_renk(KART)
 
@@ -855,14 +936,14 @@ class Panel:
         self.mb.bitti()
         if self.tasima:
             self.kb.config(text='Vardık')
-            self.kb.renk_ayarla(YESIL_DUGME)
+            self.kb.renk_ayarla(Y_YESIL)
             self.mb.config(text='Yola devam' if self.mola else 'Mola')
-            self.mb.renk_ayarla(SECILI if self.mola else TURUNCU_DUGME)
+            self.mb.renk_ayarla(Y_MAVI if self.mola else Y_TURUNCU)
         else:
             self.kb.config(text='Konaklamayı bitir' if self.konak_acik else 'Konaklamaya hazır')
-            self.kb.renk_ayarla(DUGME if self.konak_acik else YESIL_DUGME)
+            self.kb.renk_ayarla(DUGME if self.konak_acik else Y_YESIL)
             self.mb.config(text='Yola çıkıyorum')
-            self.mb.renk_ayarla(SECILI)
+            self.mb.renk_ayarla(Y_MAVI)
         if self.kayma and not self.tasima:
             self.mb.place_forget()
             self.kk.place(**self.kk_yer)
@@ -947,39 +1028,64 @@ class Panel:
         soc = a.get('aku_doluluk')
         renk = YESIL if soc is None or soc >= AKU_DUSUK else UYARI if soc >= AKU_KRITIK else KIRMIZI
         eski = time.time() - self.aku_zaman > 60
-        self.soc.config(text=f('aku_doluluk', 0, ' %'), fg=ESKI if eski else (YAZI if renk == YESIL else renk))
-        self.bar.coords(self.bar_r, 0, 0, 1.6 * max(0, min(100, soc or 0)), 14)
-        self.bar.itemconfig(self.bar_r, fill=renk)
-        self.a['v'].config(text=f('aku_voltaj', 2, ' V'))
-        self.a['a'].config(text=f('aku_akim', 1, ' A'))
-        self.a['w'].config(text=f('aku_guc', 0, ' W'))
-        self.a['k'].config(text=f('aku_kalan', 0, ' Ah'))
+        self.soc.config(text=f('aku_doluluk', 0, ' %'), fg=ESKI if eski else renk)
+        self.aku_f.serit_renk(ESKI if eski else renk)
+        g = 0 if soc is None else max(0, min(100, soc)) * 3.49
+        self.bar.coords(self.bar_r, *yuvarlak_noktalar(0, 0, max(g, 24), 25, 12))
+        self.bar.itemconfig(self.bar_r, fill=ESKI if eski else renk, state='normal' if soc else 'hidden')
         A, kalan = a.get('aku_akim'), a.get('aku_kalan')
+        kap = kalan / (soc / 100) if kalan is not None and soc else None
+        self.aku_k.config(text=('%.0f / %.0f Ah' % (kalan, kap)) if kap else f('aku_kalan', 0, ' Ah'))
         s = '–'
         if A is not None and kalan is not None:
-            kap = kalan / (soc / 100) if soc else 0
             if A < -0.3:
-                s = '~%.0f sa (bitiş)' % (kalan / -A)
-            elif A > 0.3 and kap > 0:
-                s = '~%.1f sa (dolum)' % ((kap - kalan) / A)
+                s = '~%.0f sa sonra biter' % (kalan / -A)
+            elif A > 0.3 and kap:
+                s = '~%.1f sa sonra dolar' % ((kap - kalan) / A)
             else:
                 s = 'boşta'
-        self.a['s'].config(text=s)
-        self.a['h'].config(text=f('aku_min_hucre', 3, '') + ' – ' + f('aku_max_hucre', 3, ' V'))
-        t = f('aku_sicaklik_1', 0, ' °C') + (' / ' + f('aku_sicaklik_2', 0, ' °C') if 'aku_sicaklik_2' in a else '')
-        self.a['t'].config(text=t)
-        d = {'Idle': 'boşta', 'Charging': 'şarj oluyor', 'Discharging': 'kullanılıyor', 'Offline': 'bağlantı yok',
-             'Unknown': 'bilinmiyor'}.get(a.get('durum'), a.get('durum') or '–')
-        if a.get('hatalar') and a.get('hatalar') != 'Offline':
-            d += ' ⚠ ' + a['hatalar']
-        self.a['d'].config(text=d)
+        self.aku_s.config(text=s)
+        d = {'Idle': 'boşta', 'Charging': '⚡ şarj oluyor', 'Discharging': 'kullanılıyor', 'Offline': 'bağlantı yok',
+             'Unknown': 'bilinmiyor'}.get(a.get('durum'), a.get('durum') or '')
+        self.aku_dl.config(text=d, fg=YESIL if a.get('durum') == 'Charging' else SOLUK)
+        self.a['v'].config(text=f('aku_voltaj', 2, ' V'), fg=ESKI if eski else YAZI)
+        self.a['a'].config(text=('+' if (A or 0) > 0.05 else '') + f('aku_akim', 1, ' A'),
+                           fg=ESKI if eski else YESIL if (A or 0) > 0.3 else YAZI)
+        self.a['w'].config(text=f('aku_guc', 0, ' W'), fg=ESKI if eski else YAZI)
+        t1, t2 = a.get('aku_sicaklik_1'), a.get('aku_sicaklik_2')
+        ayri = t1 is not None and t2 is not None and round(t1) != round(t2)
+        t = ('%.0f° / %.0f°' % (t1, t2)) if ayri else f('aku_sicaklik_1', 0, ' °C')
+        self.a['t'].config(text=t, font=F(18 if ayri else 22, True), fg=ESKI if eski else MAVI if t1 is not None and t1 < 5 else TURUNCU if t1 is not None and t1 > 40 else YAZI)
+        # hücreler: 2.9-3.6 V aralığı çubuğa yayılır
+        hv = [a.get('aku_hucre_%d' % i) for i in range(1, 5)]
+        dolu = [v for v in hv if v is not None]
+        for (r, tx, x), v in zip(self.hucre, hv):
+            if v is None:
+                self.hc.itemconfig(r, state='hidden')
+                self.hc.itemconfig(tx, text='–')
+                continue
+            oran = max(0.0, min(1.0, (v - 2.9) / 0.7))
+            sapma = dolu and (v - min(dolu) > 0.05 or max(dolu) - v > 0.05)
+            self.hc.coords(r, *yuvarlak_noktalar(x, 0, x + max(16, oran * 112), 26, 8))
+            self.hc.itemconfig(r, state='normal', fill=ESKI if eski else UYARI if sapma else YESIL)
+            self.hc.itemconfig(tx, text='%.3f V' % v, fill=ESKI if eski else YAZI)
+        fark = a.get('aku_hucre_farki')
+        if fark is None and len(dolu) > 1:
+            fark = max(dolu) - min(dolu)
+        self.hc_fark.config(text='' if fark is None else 'fark %d mV' % round(fark * 1000),
+                            fg=YESIL if fark is not None and fark < 0.03 else UYARI)
+        bag = 'Bluetooth bırakıldı' if not self.bms_baglanti else 'bağlı' if self.bms_bagli else 'bağlı değil'
+        sat = ['Bağlantı: ' + bag]
+        if self.bms_sinyal is not None:
+            sat.append('Sinyal: %d dBm' % self.bms_sinyal)
+        if a.get('aku_dongu') is not None:
+            sat.append('Döngü: %d' % a['aku_dongu'])
+        self.bms_l.config(text='\n'.join(sat), fg=YAZI if self.bms_bagli else SOLUK)
         self.oz_aku.config(text=f('aku_doluluk', 0, ' %'), fg=ESKI if eski else renk)
         self.oz_aku_c.coords(self.oz_aku_r, *self._cubuk(soc, 100))
         self.oz_aku_c.itemconfig(self.oz_aku_r, fill=renk, state='normal' if soc else 'hidden')
         self.oz_aku_a.config(text='Bluetooth bağlı değil' if soc is None else
                              f('aku_voltaj', 1, ' V') + ' · ' + f('aku_akim', 1, ' A') + ' · ' + s)
-        ek = '(Bluetooth bırakıldı)' if not self.bms_baglanti else '' if self.bms_bagli else '(bağlı değil)'
-        self.aku_b.config(text='Akü ' + ek)
         self.bb.bitti()
         self.bb.config(text="Telefon uygulaması için Bluetooth'u bırak" if self.bms_baglanti else 'Bluetooth bağlantısını geri al')
 
@@ -1038,16 +1144,24 @@ class Panel:
         l, depo = self.su.get('su_kalan'), self.su.get('su_depo_litre') or 100
         az = self.su_alt is False
         eski = time.time() - self.su_zaman > 60
-        self.sul.config(text='–' if l is None else '~%d L' % yuvarla(l),
-                        fg=ESKI if eski else UYARI if az else YAZI)
-        h = 0 if l is None else min(100, l / depo * 100) * 1.09
-        self.tank.coords(self.tank_r, 3, 112 - h, 71, 112)
-        self.tank.itemconfig(self.tank_r, fill=TURUNCU if az else SU_MAVI)
+        renk = ESKI if eski else TURUNCU if az else SU_MAVI
+        self.sul.config(text='–' if l is None else '~%d L' % yuvarla(l), fg=ESKI if eski else UYARI if az else YAZI)
+        yuzde = None if l is None else max(0, min(100, l / depo * 100))
+        self.su_dl.config(text='depo %d L' % yuvarla(depo) + ('' if yuzde is None else ' · %%%d' % yuvarla(yuzde)) +
+                          (' · AZALDI' if az else ''), fg=UYARI if az else SOLUK)
+        self.su_f.serit_renk(renk)
+        h = 0 if yuzde is None else (self.TY1 - self.TY0 - 8) * yuzde / 100
+        self.tank.coords(self.tank_r, *yuvarlak_noktalar(self.TX0 + 4, self.TY1 - 4 - max(h, 28), self.TX1 - 4, self.TY1 - 4, 14))
+        self.tank.itemconfig(self.tank_r, fill=renk, state='normal' if yuzde else 'hidden')
+        self.tank.itemconfig(self.tank_y, text='' if yuzde is None else '%%%d' % yuvarla(yuzde))
         ak = self.su.get('su_akis')
-        self.s_a.config(text='–' if ak is None else '%.1f L/dk' % ak if ak > 0.05 else 'yok')
+        akiyor = ak is not None and ak > 0.05
+        self.s_a.config(text='–' if ak is None else '%.1f L/dk' % ak if akiyor else 'yok', fg=SU_MAVI if akiyor else YAZI)
         g = int((time.time() * 1000 - self.su_dolum) // 86400000) if self.su_dolum else -1
         self.s_d.config(text='–' if g < 0 else 'bugün' if g == 0 else '%d gün önce' % g)
-        self.s_p.config(text='–' if self.pompa is None else 'açık' if self.pompa else 'kapalı')
+        self.s_p.config(text='–' if self.pompa is None else 'açık' if self.pompa else 'kapalı',
+                        fg=YESIL if self.pompa else YAZI)
+        self.s_kart['p'].serit_renk(YESIL if self.pompa else KENAR)
         self.oz_su.config(text='–' if l is None else '%d L' % yuvarla(l), fg=ESKI if eski else UYARI if az else MAVI)
         self.oz_su_c.coords(self.oz_su_r, *self._cubuk(l, depo))
         self.oz_su_c.itemconfig(self.oz_su_r, fill=TURUNCU if az else SU_MAVI, state='normal' if l else 'hidden')
@@ -1056,7 +1170,7 @@ class Panel:
         self.spb.bitti()
         self.spb.config(text='Pompayı kapat' if self.pompa else 'Pompayı aç')
         ls = self.su.get('su_litre_sinyal')
-        self.s_k.config(text='Litre başına sinyal: %s   ·   Ölçüm kaydı: %s\nDepo: %s L, sensörün altında: %s L (web panelinden değiştirilir)' % (
+        self.s_k.config(text='Litre başına sinyal: %s   ·   Ölçümler: %s\nDepo %s L, sensörün altında %s L (web panelinden değiştirilir)' % (
             '–' if ls is None else yuvarla(ls), self.su_kal,
             '–' if self.su.get('su_depo_litre') is None else yuvarla(self.su['su_depo_litre']),
             '–' if self.su.get('su_sensor_alti_litre') is None else yuvarla(self.su['su_sensor_alti_litre'])))
@@ -1126,33 +1240,50 @@ class Panel:
     def seviye_goster(self):
         if self.egim_on is None or self.egim_yan is None:
             return
-        def c(v):
-            return max(-5, min(5, v)) * 9
-        x, y = self.bx + c(self.egim_yan), self.by - c(self.egim_on)
+        # karekök ölçek: merkeze yakın hassas; halkalar 22 px ≈ 0,6°, 44 px ≈ 2,5°, kenar 5°+
+        m = math.hypot(self.egim_yan, self.egim_on)
+        k = 0 if m < 1e-6 else 58 * math.sqrt(min(m, 5) / 5) / m
+        x, y = self.bx + self.egim_yan * k, self.by - self.egim_on * k
         r = self.koseler()
         t = self.en_iyi(r)
-        self.sev_c.coords(self.dot, x - 9, y - 9, x + 9, y + 9)
-        self.sev_c.itemconfig(self.dot, fill=TURUNCU if t else YESIL)
+        rk = TURUNCU if t else YESIL
+        self.sev_c.coords(self.dot, x - 11, y - 11, x + 11, y + 11)
+        self.sev_c.coords(self.dot_g, x - 15, y - 15, x + 15, y + 15)
+        self.sev_c.coords(self.dot_p, x - 6, y - 7, x - 1, y - 3)
+        self.sev_c.itemconfig(self.dot, fill=rk)
+        self.sev_c.itemconfig(self.dot_g, outline=rk)
+        self.nabiz_k = t['k'] if t else None
+        self.tal_f.serit_renk(TURUNCU if t else YESIL)
         for k, x_ in r.items():
             kutu, yazi = self.kose[k]
             ayar_ister = x_['cm'] >= ESIK_CM
-            self.sev_c.itemconfig(kutu, outline=SARI if (t and t['k'] == k) else '#222a35')
+            zemin = ('#3a2412' if x_['is'] == 'indir' else '#122a40') if ayar_ister else '#12301d'
+            self.sev_c.itemconfig(kutu, fill=zemin, outline=SARI if (t and t['k'] == k) else zemin)
             self.sev_c.itemconfig(yazi, fill=(TURUNCU if x_['is'] == 'indir' else MAVI) if ayar_ister else YESIL,
-                                  text=('indir ' if x_['is'] == 'indir' else 'kaldır ') + '%d cm' % yuvarla(x_['cm']) if ayar_ister else '✓')
+                                  text=('↓ ' if x_['is'] == 'indir' else '↑ ') + '%d cm' % yuvarla(x_['cm']) if ayar_ister else '✓')
         adlar = {'sol_on': 'Sol ön', 'sag_on': 'Sağ ön', 'sol_arka': 'Sol arka', 'sag_arka': 'Sağ arka'}
         eski = time.time() - self.egim_zaman > 10
         self.talimat.config(text=(adlar[t['k']] + ' ayağı ' + ('indir' if t['is'] == 'indir' else 'kaldır') +
-                                  ', ~%d cm' % yuvarla(t['cm'])) if t else 'Karavan düz ✓', fg=ESKI if eski else YAZI)
+                                  ', ~%d cm' % yuvarla(t['cm'])) if t else 'Karavan düz ✓',
+                            fg=ESKI if eski else YAZI if t else YESIL)
 
         def yz(v, a, b):
             return ('+' if v >= 0 else '') + '%.1f° ' % v + ('' if abs(v) < 0.1 else a if v > 0 else b)
         self.egimler.config(text='Ön-arka: ' + yz(self.egim_on, '(ön yüksek)', '(arka yüksek)') +
                             '  ·  Sol-sağ: ' + yz(self.egim_yan, '(sağ yüksek)', '(sol yüksek)'))
 
+    def _sev_nabiz(self):
+        """Sıradaki ayağın kutusu yanıp söner."""
+        self.nabiz = not self.nabiz
+        for k, (kutu, _) in self.kose.items():
+            if k == self.nabiz_k:
+                self.sev_c.itemconfig(kutu, outline=SARI if self.nabiz else '#7a5a10', width=4 if self.nabiz else 3)
+        self.kok.after(600, self._sev_nabiz)
+
     def ayar_goster(self):
         self.yb.config(text='Yöntem: ' + ('sadece indir (en yüksek köşeye göre)' if self.ayar.get('yontem') == 'indir'
                                           else 'indir ve kaldır (yükseklik aynı kalır)'))
-        self.olcu.config(text='Ayaklar arası: ön-arka %s cm, sol-sağ %s cm (web panelinden değiştirilir)' %
+        self.olcu.config(text='↓ indir  ·  ↑ kaldır  ·  ✓ tamam\nAyaklar arası: ön-arka %s cm, sol-sağ %s cm (web panelinden)' %
                          (self.ayar.get('boy'), self.ayar.get('en')))
 
     def yontem_dugme(self):
@@ -1171,6 +1302,7 @@ class Panel:
     def rehber_ayarla(self, a):
         self.rehber, self.hedef, self.duz_say, self.son_ses = a, None, 0, 0
         self.rb.config(text='Sesli seviye ayarını durdur' if a else 'Sesli seviye ayarını başlat')
+        self.rb.renk_ayarla(DUGME if a else SECILI)
         if a:
             self.ses.soyle(['basla'], True)
         else:

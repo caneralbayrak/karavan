@@ -5,7 +5,9 @@ from PIL import Image, ImageDraw, ImageFont
 YT = '/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf'
 HEDEF = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'yerel_panel', 'simgeler')
 SIMGELER = {'genel': '🏠', 'aku': '🔋', 'su': '💧', 'seviye': '📐', 'ic': '🌡️', 'nem': '💦', 'dis': '🌲',
-            'basinc': '🌤️', 'hareket': '🚶', 'alarm': '🛡️', 'konak': '🏕️', 'konum': '📍'}
+            'basinc': '🌤️', 'hareket': '🚶', 'alarm': '🛡️', 'konak': '🏕️', 'konum': '📍',
+            'volt': '⚡', 'akim': '🔌', 'guc': '💡', 'hucre': '🧪', 'bms': '📶', 'akis': '🌊',
+            'takvim': '📅', 'pompa': '🚰', 'ayar': '⚙️', 'rehber': '🧭', 'karavan': '🚐'}
 f = ImageFont.truetype(YT, 109)
 for ad, e in SIMGELER.items():
     im = Image.new('RGBA', (160, 160), (0, 0, 0, 0))

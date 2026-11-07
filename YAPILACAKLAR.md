@@ -72,7 +72,7 @@ Ayrı terminalde `ssh karavan@192.168.1.117` ile bağlanıp sırayla:
   - **Şofben (gazlı, bacalı):** MQ-7 CO sensörü yakınına; kışın içindeki su da boşaltılsın.
   - **Isıtıcı paneli:** renkli LCD, 5 tuş + 433 MHz kumanda. Mavi tel projesi eski 3 telli LCD'ler için; bu tip farklı protokol olabilir → panel arkasındaki tel sayısı ve renkleri.
 - [ ] Proje bitince: prototip karavanda oturunca KiCad ile şema + PCB çiz, dosyaları (Gerber dahil) GitHub'a koy; başkaları kendi yaptırabilsin (kullanıcının fikri 2026-11-05)
-- [ ] Yerel panel yeni görünüm (2026-11-06): Genel sekmesi bitti, kullanıcı beğendi. Sırada Akü, Su ve Seviye sekmelerinin tasarımı; sonra web paneli (panel/index.html) aynı tarza
+- [ ] Yerel panel yeni görünüm: Genel (2026-11-06) ve Akü/Su/Seviye (2026-11-08: hücre çubukları, BMS kartı, büyük depo çizimi, karavan üstten görünüş + su terazisi) bitti. Sırada web paneli (panel/index.html) aynı tarza
 - [x] Sesli uyarılar yenilendi (2026-11-06/07): Chatterbox + FLEURS kadın sesi, 218 dosya; ayak+santim tek cümle (sol_arka_indir_7), ses seviyesi eşit, hışırtı temizlendi. Üretim: tasarim/ses_uretim/
 - [ ] Proje bitince: panellere dil seçeneği (Türkçe/İngilizce); sesli uyarılar için İngilizce Piper sesiyle ses dosyaları da üretilecek
 
