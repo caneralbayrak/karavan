@@ -109,6 +109,13 @@ Ayrı terminalde `ssh karavan@192.168.1.117` ile bağlanıp sırayla:
 - (Ek GPS gerekmez: NEO-M8N TX hem ESP GPIO16'ya hem MAX3232'ye; GPS'i telsizin 10V/13.2V çıkışından doğrudan besleme)
 - Sorulacak: telsiz modeli (4021/4025?), firmware yüklü ve APRS yayında denendi mi? (mini PC'de DB9 YOK; seri port RJ45 TARGET yuvası, TTL)
 
+### Hava sensörleri (sonraki iş; Türkiye'den)
+- [ ] Rüzgar ölçer (anemometre, darbe çıkışlı)
+- [ ] AS3935 yıldırım dedektörü modülü
+- [ ] BH1750 ya da LTR390 ışık/UV modülü
+- [ ] Yağmur damla sensörü kartı
+- [ ] SHT31 ya da SHT40 nem/sıcaklık modülü (+ küçük güneş siperi)
+
 ### Diğer (konuşulacak, acele yok)
 - [ ] Gaz / CO (MQ-6, MQ-7 elde var; karavanda pilli CO ve LPG dedektörü zaten var)
 - [ ] **Geri görüş kamerası (2026-11-07, karar sonra):** park sensörü yerine kamera. Öneri: hazır kablosuz set (2.4 GHz dijital, ayrı küçük ekran, "uzun menzilli"; ~2.000-5.000 TL), bizim sisteme bağlı değil → gecikme yok, sistem bozulsa da çalışır. Kamera beslemesi 13 pinli fişteki **geri vites lambası** hattından → geri vitese takınca kendiliğinden açılır. WiFi/ESP32-CAM ile telefondan izleme sürüş için önerilmez (0,5-1 sn gecikme). Alternatif: arka tampona 2-3 adet JSN-SR04T ultrasonik park sensörü (2. ESP'ye), mesafe telefondaki web panelinde + buzzer
@@ -125,7 +132,7 @@ Ayrı terminalde `ssh karavan@192.168.1.117` ile bağlanıp sırayla:
 - [ ] **TAŞIMA MODU (kullanıcı onayladı 2026-11-07, "hepsi güzel"):** konaklama modunun karşılığı; panelde "Yola çıkıyorum" düğmesi.
   - **Hazırlık:** su pompası, inverter, ışıklar kapansın (röleler gelince); hareket alarmı ve kayma uyarısı yolda susturulsun.
   - **Sesli kontrol listesi:** ayaklar kalktı mı, tente, tavan kapağı, pencereler, gaz vanası, buzdolabı kilidi, şofben/ısıtıcı → panelde dokunarak onay.
-  - **Kapı/pencere/tavan kapağı sensörleri** (mıknatıslı reed, parça alınacak): açık kalan varsa yola çıkarken uyarı.
+  - ~~Kapı/pencere sensörleri~~ — VAZGEÇİLDİ (kullanıcı 2026-11-08: çok pencere var; kontrol listesi yeterli, hareket sensörü var, gerekirse ikinci PIR takılır). Not: kablosuz istenirse Sonoff DW2-RF 433 MHz + CC1101
   - **Savrulma uyarısı:** MPU6050 ile yanal salınım (snaking) algılanınca arabadaki telefona acil ntfy (öncelikli iş, donanım hazır).
   - **Lastik basıncı:** BLE TPMS sibop sensörleri (parça alınacak) → 2. ESP okur; düşük basınç/sönme → telefona bildirim.
   - **Yolculuk kaydı:** GPS'ten yol, süre, en yüksek hız, rota; yolda güneşten gelen şarj (BMS akımı; 13 pinden şarj YOK, kablo uzun/ince — kullanıcı). Varınca panelde özet.
@@ -133,6 +140,18 @@ Ayrı terminalde `ssh karavan@192.168.1.117` ile bağlanıp sırayla:
   - **Durunca soru:** hız birkaç dk sıfırda kalınca panel + telefon: "Vardık mı, moladayız mı?" → **Vardık:** konaklama moduna geç, seviye rehberi başlasın, pompa açılsın. **Moladayız:** taşıma modunda kal; karavan başında kimse yoksa hareket alarmı geçici kurulsun, yeniden yola çıkınca (GPS hızı) kendiliğinden kapansın.
   - **Unutma uyarısı:** GPS hızı birkaç dk >15 km/s ve taşıma modu kapalıysa telefona "Taşıma modunu açmayı unuttun".
 - [ ] **Rakım:** GPS + MS5611 (GY-63) birleşimi; panelde rakım ve yol boyu tırmanış
+- [ ] **YEREL HAVA DURUMU (kullanıcının fikri 2026-11-08; ~/aprs-hava istasyonuna hazırlık):** yeni parça gerektirmez
+  - **Yerel tahmin (Zambretti):** deniz seviyesi basıncı + 3 sa eğilim (+ ay) → "Güzel / Değişken / Yağmur olası / Fırtına riski"; internetsiz çalışır
+  - **Uyarılar:** fırtına (3 sa'te >3 hPa düşüş), don (dış <2 °C, su tesisatı), yoğuşma (iç çiy noktası → ileride tavan fanı otomatik)
+  - **Geçmiş + grafik:** mini PC'de kayıt programı (dakikada bir basınç/sıcaklık) → panellerde 48 sa barograf ve sıcaklık grafiği
+  - **Ortak kod `hava.h`:** Zambretti, çiy noktası, deniz seviyesi basıncı, eğilim (ileride APRS WX paket biçimi) → hava istasyonu ESP'si de aynısını kullanır
+  - Panelde yeni "Hava" bölümü: tahmin, eğilim oku, grafik, uyarılar
+  - **Ek sensörlerle (sonraki iş, kullanıcı "hepsini ekleyelim" dedi 2026-11-08; hepsi hava istasyonunda da kullanılabilir). Öncelik sırası:**
+    1. **Rüzgar ölçer (anemometre):** tenteye/kısa direğe; rüzgar eşiği aşınca telefona "Tenteyi topla!" (karavan başında değilken de)
+    2. **Yıldırım dedektörü AS3935:** yaklaşan fırtınanın uzaklığı (km) ve yaklaşıyor mu
+    3. **Işık/UV sensörü (BH1750 ya da LTR390):** güneş gücü → "paneller gölgede mi" uyarısını kesinleştirir (güneş güçlü + şarj düşük)
+    4. **Yağmur sensörü (damla kartı):** tavana; yağmur başlayınca "tavan kapağı/pencereler/çamaşır"
+    5. **Dış nem (SHT31 / SHT40):** dış çiy noktası, sis ihtimali, hissedilen sıcaklık (güneş siperinde)
 - [ ] **Fırtına uyarısı:** basınç 3 saatte >3 hPa düşerse uyarı (yükseklik değişimi GPS ile ayıklanır)
 - [ ] **Panel gölgede mi? uyarısı (2026-11-07):** paneller tavanda DÜZ → karavanın yönü önemsiz, sadece gölge önemli. GPS konum + tarih/saat → güneş yüksekliği → beklenen panel gücü (internet varsa bulut tahmini de); BMS'den gelen gerçek şarj akımıyla karşılaştır; hava açıkken çok düşükse "Paneller gölgede olabilir" uyarısı. Panelde gün doğumu/batımı ve öğlen güneş yüksekliği. **BMS verisine bağlı → önce 2. ESP**
 - [ ] **Akü donma koruması:** akü 0 °C altındayken şarj olursa uyarı (BMS sıcaklığı)
