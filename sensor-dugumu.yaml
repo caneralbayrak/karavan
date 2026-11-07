@@ -102,6 +102,7 @@ gps:
     accuracy_decimals: 6
   altitude:
     name: "GPS Rakim"
+    id: gps_rakim
     accuracy_decimals: 0
   speed:
     name: "GPS Hiz"
@@ -132,6 +133,11 @@ daly_bms_ble:
     response_timeout: 3s
 
 globals:
+  # Son güvenilir GPS rakımı: deniz seviyesi basıncı hesabı için (GPS kaybolunca bununla devam)
+  - id: son_rakim
+    type: float
+    restore_value: true
+    initial_value: 'NAN'
   # --- Taşıma modu ---
   - id: salinim_son        # son savrulma uyarısının zamanı (ms)
     type: uint32_t
@@ -617,6 +623,38 @@ sensor:
       float m = salinim_durum().pencere_max;
       salinim_durum().pencere_max = 0;
       return m;
+  # GY-63 / MS5611: hassas basınç. CSB → 3.3V olduğu için adres 0x76 (BME280 0x77'de)
+  - platform: ms5611
+    address: 0x76
+    temperature:
+      id: ms_sicaklik
+      internal: true
+    pressure:
+      name: "Basinc MS5611"
+      id: ms_basinc
+      filters:
+        # Kartta "5611" yazsa da yonga MS5607 (ucuz GY-63'lerde yaygın): MS5611 formülü tam yarısını
+        # veriyor (2026-11-08: 503.8 hPa, BME280 1009.7). MS5607'de SENS ve OFF iki kat → basınç ×2
+        - multiply: 2
+      on_value:
+        - component.update: deniz_basinc
+    update_interval: 30s
+  # Deniz seviyesine indirgenmiş basınç (QNH): yokuş çıkınca değil, sadece hava değişince değişir.
+  # Fırtına uyarısı yolda da doğru çalışsın diye panel bunu kullanır.
+  - platform: template
+    name: "Deniz Seviyesi Basinc"
+    id: deniz_basinc
+    unit_of_measurement: "hPa"
+    device_class: pressure
+    accuracy_decimals: 1
+    update_interval: never
+    lambda: |-
+      float p = id(ms_basinc).state;
+      if (gps_iyi(id(gps_uydu).state, id(gps_hdop).state, id(gps_enlem).state) && !isnan(id(gps_rakim).state))
+        id(son_rakim) = id(gps_rakim).state;
+      float h = id(son_rakim);
+      if (isnan(p) || isnan(h)) return {};
+      return p / powf(1.0f - h / 44330.0f, 5.255f);
   - platform: bme280_i2c
     address: 0x77
     temperature:
@@ -716,6 +754,8 @@ interval:
     then:
       - lambda: |-
           if (!gps_iyi(id(gps_uydu).state, id(gps_hdop).state, id(gps_enlem).state)) return;
+          // Güvenilir konum anında rakımı sakla (deniz seviyesi basıncı; içeride konum ara ara geliyor)
+          if (!isnan(id(gps_rakim).state)) id(son_rakim) = id(gps_rakim).state;
           float hiz = id(gps_hiz).state;
           float en = id(gps_enlem).state, boy = id(gps_boylam).state;
           if (hiz > 15) {

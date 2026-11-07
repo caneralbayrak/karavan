@@ -846,6 +846,15 @@ class Panel:
             return
         bicim = {'ic_sicaklik': ('ic', 1, ' °C'), 'ic_nem': ('nem', 0, ' %'),
                  'basinc': ('bas', 0, ' hPa'), 'dis_sicaklik': ('dis', 1, ' °C')}
+        # Deniz seviyesi basıncı geldiyse onu kullan (yokuşta düşmez); ham basıncı artık yok say
+        if ad == 'deniz_seviyesi_basinc':
+            if sayi(s) is None:
+                return
+            if not getattr(self, 'qnh_var', False):
+                self.basinc_gecmis.clear()   # ham basınçtan geçiş: eğilim yanlış sıçramasın
+            self.qnh_var, ad = True, 'basinc'
+        elif ad == 'basinc' and getattr(self, 'qnh_var', False):
+            return
         if p[1] == 'sensor' and ad in bicim:
             k, d, b = bicim[ad]
             v = sayi(s)

@@ -233,7 +233,7 @@ input{width:90px}
 var BROKER='ws://'+(new URLSearchParams(location.search).get('broker')||location.hostname||'192.168.1.117')+':9001';
 var DEV='sensor-dugumu',AKU_DEV='aku-dugumu';
 var map={ic_sicaklik:['ic',1,' °C'],ic_nem:['nem',0,' %'],basinc:['bas',0,' hPa'],dis_sicaklik:['dis',1,' °C']};
-var seen={};
+var seen={},qnhVar=false;
 function el(i){return document.getElementById(i)}
 function val(i){return el(i).getElementsByTagName('b')[0]}
 
@@ -711,6 +711,9 @@ function mesaj(t,m){
   kayma=yeni;konakGoster();
   return;
  }
+ // Deniz seviyesi basıncı geldiyse onu kullan (yokuşta düşmez); ham basıncı artık yok say
+ if(p[2]==='deniz_seviyesi_basinc'){if(isNaN(parseFloat(s)))return;qnhVar=true;p[2]='basinc'}
+ else if(p[2]==='basinc'&&qnhVar)return;
  if(p[1]==='sensor'&&map[p[2]]){
   var d=map[p[2]],v=parseFloat(s);
   if(isNaN(v))return;

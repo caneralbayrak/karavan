@@ -22,11 +22,12 @@
 - [ ] **Ölçülü kalibrasyon (karavanda, gerçek pompayla):** karavan musluğundan 5 L bidonu doldur, Claude "Su Sayac" farkından sinyal/L hesaplasın; 2-3 kez tekrarla, tutarlıysa başlangıç değeri (450) yerine yazılsın
 
 ### Sıcaklık sensörü (su donma uyarısı için, elde var)
-- [ ] Su geçirmez DS18B20'yi deponun ya da hortumların yanına koy (mevcut DS18B20 ile aynı hatta bağlanabilir)
+- [ ] Su geçirmez DS18B20'yi deponun ya da hortumların yanına koy (mevcut DS18B20 ile aynı hatta bağlanabilir) — **montajda** (kullanıcının kararı 2026-11-08, breadboard'da uğraşılmayacak). Bağlanınca Claude iki sensörü adresleriyle ayırıp "Su Sicaklik" ve donma uyarısını ekler
 
 ### Basınç sensörü GY-63 / MS5611 (rakım ve fırtına uyarısı için, elde var)
-- [ ] Mevcut I2C hattına bağla: SDA → **GPIO21**, SCL → **GPIO22**, VCC → 3.3V, GND
-- [ ] **CSB pinini VCC'ye (3.3V) bağla!** Böylece adresi 0x76 olur. Bağlamazsan 0x77'de kalır ve BME280 ile çakışır
+- [x] Masada bağlandı (2026-11-08): I2C GPIO21/22, CSB → 3.3V → adres 0x76. Yonga aslında MS5607 (değer yarı çıkıyordu) → yapılandırmada ×2 düzeltmesi. BME280'den ~2 hPa düşük (normal)
+- [x] "Deniz Seviyesi Basinc" (QNH): MS5611 + son güvenilir GPS rakımı; paneller bunu tercih ediyor (yokuşta düşmez → fırtına eğilimi yolda da doğru). GPS ilk uyduyu bulunca hesaplanmaya başlar
+- [ ] Karavanda kalıcı montaj: pinleri lehimle; güneş/ısıtıcı üflemesinden uzak, içeride
 
 ### GPS (kod hazır, 2026-11-03)
 - [x] NEO-M8N: VCC → 5V, GND, modülün **TX → GPIO16**, modülün **RX → GPIO17** (2026-11-03 masada denendi, çalışıyor; pinler lehimlenmeli)
