@@ -80,6 +80,7 @@ web_server:
   version: 3
 
 mqtt:
+  id: mqtt_client
   broker: 192.168.1.117
   # Home Assistant kullanmıyoruz; açılışta 40+ tanıtım mesajı zayıf WiFi'de döngüyü kilitleyip
   # watchdog yeniden başlatmasına yol açıyordu (2026-11-07, inci -90 dBm)
@@ -194,8 +195,38 @@ globals:
   - id: soguk_son
     type: uint32_t
     initial_value: '0'
+  # MQTT (panel) kaç sn'dir yok / var: BMS'i bırakma ve geri alma için
+  - id: mqtt_yok_sn
+    type: int
+    initial_value: '0'
+  - id: mqtt_var_sn
+    type: int
+    initial_value: '0'
+  - id: biz_biraktik
+    type: bool
+    initial_value: 'false'
 
 interval:
+  # WiFi/MQTT yoksa veriyi kimseye iletemiyoruz: BMS'i 5 dk sonra bırak (telefon uygulaması ya da
+  # 1. ESP bağlanabilsin). MQTT 30 sn sürekli gelince geri al. Telefon hotspot'undayken bırakma
+  # (orada değerler ESP'nin web sayfasından okunuyor). Elle bırakılmışsa (panel düğmesi) dokunma.
+  - interval: 10s
+    then:
+      - lambda: |-
+          bool bagli = id(mqtt_client).is_connected();
+          bool telefon = id(wifi_ag).state.rfind("Redmi", 0) == 0;
+          id(mqtt_yok_sn) = bagli ? 0 : id(mqtt_yok_sn) + 10;
+          id(mqtt_var_sn) = bagli ? id(mqtt_var_sn) + 10 : 0;
+          if (!bagli && !telefon && id(mqtt_yok_sn) >= 300 && id(bms_baglanti).state) {
+            ESP_LOGW("bms", "Panel yok (%d sn): BMS bırakılıyor", id(mqtt_yok_sn));
+            id(biz_biraktik) = true;
+            id(bms_baglanti).turn_off();
+          }
+          if (id(biz_biraktik) && (telefon || id(mqtt_var_sn) >= 30)) {
+            ESP_LOGI("bms", "Panel geri geldi: BMS'e yeniden bağlanılıyor");
+            id(biz_biraktik) = false;
+            id(bms_baglanti).turn_on();
+          }
   - interval: 10s
     then:
       - lambda: |-
