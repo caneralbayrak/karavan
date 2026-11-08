@@ -56,7 +56,7 @@ Ayrı terminalde `ssh karavan@192.168.1.117` ile bağlanıp sırayla:
 - [x] Ön tuşlar (2026-11-06): yön+OK klavye tuşu; L/R = dahili PS/2 fare (GRUB i8042.nomux=1), kiosk.sh'de 8/9'a taşındı (tıklama yapmıyor). Panelde görev verilecek
 
 ### Seviye ayarı (karavanda)
-- [ ] **Ayak ölçüleri ÖLÇÜLDÜ (2026-11-08): ön-arka 373 cm, sol-sağ 153 cm** → eve dönünce MQTT karavan/ayar'a gir (retained; yöntem 'indir' kalsın). Eski not: ayaklar arası mesafeyi ölç (varsayılan 400×200 cm): ön-arka = aynı taraftaki ön ve arka ayak, sol-sağ = öndeki iki ayak; ayak milinin merkezinden merkezine, cm. Claude MQTT'ye (karavan/ayar) girer ya da web panelinden girilir
+- [x] **Ayak ölçüleri (2026-11-08): ön-arka 373 cm, sol-sağ 153 cm** (şaft merkezleri) → karavan/ayar.a girildi. Eski not: ayaklar arası mesafeyi ölç (varsayılan 400×200 cm): ön-arka = aynı taraftaki ön ve arka ayak, sol-sağ = öndeki iki ayak; ayak milinin merkezinden merkezine, cm. Claude MQTT'ye (karavan/ayar) girer ya da web panelinden girilir
 - [ ] Sensör kartı yerine takılınca: panelden **sensör yönü** (X oku öne/arkaya/sola/sağa) ve su terazisiyle düzledikten sonra **"düz kabul et"**
 
 ### Sonra
