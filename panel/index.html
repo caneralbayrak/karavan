@@ -231,7 +231,7 @@ input{width:90px}
 // Mini PC kioskta ?broker=localhost ile açılır; diğer cihazlar varsayılanı kullanır
 // Web sunucusundan açıldıysa broker aynı makinededir (karavanda IP değişse de çalışır)
 var BROKER='ws://'+(new URLSearchParams(location.search).get('broker')||location.hostname||'192.168.1.117')+':9001';
-var DEV='sensor-dugumu',AKU_DEV='aku-dugumu';
+var DEV='sensor-dugumu',AKU_DEV='sensor-dugumu';
 var map={ic_sicaklik:['ic',1,' °C'],ic_nem:['nem',0,' %'],basinc:['bas',0,' hPa'],dis_sicaklik:['dis',1,' °C']};
 var seen={},qnhVar=false;
 function el(i){return document.getElementById(i)}

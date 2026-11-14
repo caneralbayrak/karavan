@@ -21,7 +21,7 @@ import paho.mqtt.client as mqtt
 
 BROKER = os.environ.get('KARAVAN_BROKER', 'localhost')
 DEV = 'sensor-dugumu'
-AKU_DEV = 'aku-dugumu'   # 2. ESP (akünün yanı): BMS
+AKU_DEV = 'sensor-dugumu'   # BMS artık 1. ESP'de (2026-11-15, aku-dugumu birleştirildi)
 AL_TOPIC = 'karavan/alarm'
 OLAY_TOPIC = 'karavan/olay'   # ESP olayları: salinim, durdu, mola, mola_bitti, vardik, tasima_oto
 AYAR_TOPIC = 'karavan/ayar'

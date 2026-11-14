@@ -79,3 +79,11 @@ Otomatik geçiş: jak algılaması çalışıyor ('Headphone Mic Jack'); PipeWir
 ### Arkadaş paketi
 `arkadas_paketi/` + `cellebrite_seri_paketi.zip`: tek komutla kurulum (`sudo sh kur.sh`, busybox),
 NB12 (Tiny Core) cihazında çalıştı. Anlatım: cellebrite_seri_yuvalar.html
+
+## Uzaktan erişim: Tailscale (2026-11-14)
+Karavan modemi 4G (Türk Telekom) CGNAT arkasında (10.x adres) → port yönlendirme yok. Tailscale 1.104.7 (386 statik)
+`/usr/local/sbin/tailscaled` + runit servisi `/etc/sv/tailscaled` (kurulum: `sistem/tailscale_kur.sh`, `sudo sh ~/tailscale_kur.sh`).
+Mini PC Tailscale adı `karavan`, operatör `karavan` (sudo'suz `tailscale status`). Telefon ve ThinkPad aynı hesapta.
+Uzaktan: web paneli `http://<tailscale ip>`, SSH `ssh karavan@<tailscale ip>`, ESP/modem mini PC üzerinden (ssh -L).
+Alt ağ yönlendirme (subnet route) KULLANILMADI: ev ağı da 192.168.1.0/24, çakışır.
+Admin panelinde `karavan` için "Disable key expiry" yapılmalı (yoksa 180 günde erişim kesilir).

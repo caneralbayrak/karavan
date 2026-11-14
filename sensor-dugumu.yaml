@@ -47,6 +47,10 @@ ota:
 
 wifi:
   networks:
+    # Karavanın kendi modemi (TL-MR100, 2026-11-15): her zaman önce bu
+    - ssid: !secret wifi4_ad
+      password: !secret wifi4_sifre
+      priority: 10
     - ssid: !secret wifi1_ad
       password: !secret wifi1_sifre
     - ssid: !secret wifi2_ad
@@ -71,6 +75,10 @@ mqtt:
   broker: 192.168.1.117
   # Yolda mini PC'ye ulaşılamaz; savrulma/ntfy işleri sürsün, yeniden başlamasın
   reboot_timeout: 0s
+  # Home Assistant yok; açılıştaki tanıtım mesajları zayıf WiFi'de döngüyü kilitliyordu (aku-dugumu, 2026-11-07)
+  discovery: false
+  # Mesajları arka planda gönder: zayıf hatta yayın ana döngüyü kilitlemesin (watchdog)
+  idf_send_async: true
 
 http_request:
   verify_ssl: true
@@ -133,6 +141,24 @@ daly_bms_ble:
     response_timeout: 3s
 
 globals:
+  # --- Akü (2026-11-15'te aku-dugumu'dan taşındı) ---
+  # LiFePO4 0 °C altında şarj edilmez: soğukta şarj 1 dk sürerse telefona bildir, 30 dk'da bir tekrar
+  - id: soguk_sn
+    type: int
+    initial_value: '0'
+  - id: soguk_son
+    type: uint32_t
+    initial_value: '0'
+  # MQTT (panel) kaç sn'dir yok / var: BMS'i bırakma ve geri alma için
+  - id: mqtt_yok_sn
+    type: int
+    initial_value: '0'
+  - id: mqtt_var_sn
+    type: int
+    initial_value: '0'
+  - id: biz_biraktik
+    type: bool
+    initial_value: 'false'
   # Son güvenilir GPS rakımı: deniz seviyesi basıncı hesabı için (GPS kaybolunca bununla devam)
   - id: son_rakim
     type: float
@@ -353,6 +379,13 @@ switch:
     id: bms_baglanti
 
 text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "IP Adresi"
+      id: wifi_ip
+    ssid:
+      name: "WiFi Agi"
+      id: wifi_ag
   - platform: mqtt_subscribe
     id: alarm_durum
     topic: karavan/alarm
@@ -392,6 +425,20 @@ text_sensor:
       name: "Aku Hatalar"
 
 script:
+  - id: soguk_uyar
+    mode: single
+    then:
+      - http_request.post:
+          url: https://ntfy.sh/${ntfy_konu}
+          request_headers:
+            Title: "Aku donma noktasinda sarj oluyor!"
+            Priority: "high"
+            Tags: "snowflake,battery"
+          body: !lambda |-
+            char b[120];
+            float t = std::min(isnan(id(aku_t1).state) ? 99.0f : id(aku_t1).state, isnan(id(aku_t2).state) ? 99.0f : id(aku_t2).state);
+            snprintf(b, sizeof(b), "Akü %.0f °C, şarj akımı %.1f A. 0 °C altında şarj aküye zarar verir; şarjı durdurun.", t, id(aku_akim).state);
+            return std::string(b);
   - id: salinim_uyar
     mode: single
     then:
@@ -473,12 +520,21 @@ script:
       - delay: 60s
 
 sensor:
+  # BMS sinyal gücü (akünün yanında iyi olmalı; eski yerinde -97 dBm idi)
+  - platform: ble_client
+    type: rssi
+    ble_client_id: bms_ble
+    name: "BMS Sinyal"
+  - platform: wifi_signal
+    name: "WiFi Sinyal"
+    update_interval: 60s
   - platform: daly_bms_ble
     daly_bms_ble_id: bms
     total_voltage:
       name: "Aku Voltaj"
     current:
       name: "Aku Akim"
+      id: aku_akim
     power:
       name: "Aku Guc"
     state_of_charge:
@@ -495,8 +551,10 @@ sensor:
       name: "Aku Hucre Farki"
     temperature_1:
       name: "Aku Sicaklik 1"
+      id: aku_t1
     temperature_2:
       name: "Aku Sicaklik 2"
+      id: aku_t2
     cell_voltage_1:
       name: "Aku Hucre 1"
     cell_voltage_2:
@@ -749,6 +807,41 @@ binary_sensor:
       name: "Aku Dengeleme"
 
 interval:
+  # WiFi/MQTT yoksa veriyi kimseye iletemiyoruz: BMS'i 5 dk sonra bırak (telefon uygulaması
+  # bağlanabilsin). MQTT 30 sn sürekli gelince geri al. Telefon hotspot'undayken bırakma.
+  # Elle bırakılmışsa (panel düğmesi) dokunma.
+  - interval: 10s
+    then:
+      - lambda: |-
+          bool bagli = id(mqtt_client).is_connected();
+          bool telefon = id(wifi_ag).state.rfind("Redmi", 0) == 0;
+          id(mqtt_yok_sn) = bagli ? 0 : id(mqtt_yok_sn) + 10;
+          id(mqtt_var_sn) = bagli ? id(mqtt_var_sn) + 10 : 0;
+          if (!bagli && !telefon && id(mqtt_yok_sn) >= 300 && id(bms_baglanti).state) {
+            ESP_LOGW("bms", "Panel yok (%d sn): BMS bırakılıyor", id(mqtt_yok_sn));
+            id(biz_biraktik) = true;
+            id(bms_baglanti).turn_off();
+          }
+          if (id(biz_biraktik) && (telefon || id(mqtt_var_sn) >= 30)) {
+            ESP_LOGI("bms", "Panel geri geldi: BMS'e yeniden bağlanılıyor");
+            id(biz_biraktik) = false;
+            id(bms_baglanti).turn_on();
+          }
+  # Soğukta şarj bekçisi
+  - interval: 10s
+    then:
+      - lambda: |-
+          float t = NAN;
+          if (!isnan(id(aku_t1).state)) t = id(aku_t1).state;
+          if (!isnan(id(aku_t2).state)) t = isnan(t) ? id(aku_t2).state : std::min(t, id(aku_t2).state);
+          bool soguk = !isnan(t) && !isnan(id(aku_akim).state) && id(aku_akim).state > 0.3f && t <= 1.0f;
+          id(soguk_sn) = soguk ? id(soguk_sn) + 10 : 0;
+          uint32_t simdi = esphome::millis();
+          if (id(soguk_sn) >= 60 && (id(soguk_son) == 0 || simdi - id(soguk_son) > 1800000)) {
+            id(soguk_son) = simdi;
+            ESP_LOGW("aku", "Soğukta şarj: %.1f °C, %.1f A", t, id(aku_akim).state);
+            id(soguk_uyar).execute();
+          }
   # Taşıma modu: hareket / duruş takibi (GPS 10 sn'de bir)
   - interval: 10s
     then:
