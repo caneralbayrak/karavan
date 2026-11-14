@@ -86,4 +86,4 @@ Karavan modemi 4G (Türk Telekom) CGNAT arkasında (10.x adres) → port yönlen
 Mini PC Tailscale adı `karavan`, operatör `karavan` (sudo'suz `tailscale status`). Telefon ve ThinkPad aynı hesapta.
 Uzaktan: web paneli `http://<tailscale ip>`, SSH `ssh karavan@<tailscale ip>`, ESP/modem mini PC üzerinden (ssh -L).
 Alt ağ yönlendirme (subnet route) KULLANILMADI: ev ağı da 192.168.1.0/24, çakışır.
-Admin panelinde `karavan` için "Disable key expiry" yapılmalı (yoksa 180 günde erişim kesilir).
+Admin panelinde `karavan` için "Disable key expiry" YAPILDI (2026-11-14).
